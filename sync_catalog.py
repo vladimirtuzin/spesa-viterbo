@@ -30,9 +30,13 @@ def write_json(name, data):
 
 def map_category(name, parent=""):
     text = name.lower()
+    if "frutta e verdura" in text:
+        return "vegetables"
+    if any(word in text for word in ("frutta secca", "frutta a guscio", "semi", "noci", "mandorle", "anacardi")):
+        return "nuts"
     if any(word in text for word in ("frutta", "fruit", "agrum", "mele", "pere", "banane")):
         return "fruit"
-    if any(word in text for word in ("verdura", "vegetab", "ortaggi", "insalat", "funghi")):
+    if any(word in text for word in ("verdura", "vegetab", "ortaggi", "insalat", "funghi", "aglio", "cipoll", "carot", "pomodor", "patat", "broccol", "cavol", "zucchin", "peperon", "asparag")):
         return "vegetables"
     if any(word in text for word in ("carne", "macelleria", "pollo")):
         return "meat"
@@ -120,7 +124,11 @@ def refresh_lidl(session):
                 raw_price = item.get("discounted_price") or item.get("price")
                 if not raw_price:
                     continue
-                category = map_category(item.get("category_name", ""), tag["name"])
+                category = next(
+                    (mapped for section in item.get("categories", [])
+                     if (mapped := map_category(section["name"])) != "other"),
+                    map_category(tag["name"]),
+                )
                 product = {
                     "key": "lidl-everli-" + str(item["id"]),
                     "store": "Lidl",

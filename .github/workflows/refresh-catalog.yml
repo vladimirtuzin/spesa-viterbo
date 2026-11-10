@@ -21,7 +21,7 @@ jobs:
       - run: python sync_catalog.py
       - name: Commit updated catalog
         run: |
-          git add meta.json products.json lidl-products.json eurospin-products.json sync-status.json assets/atlases
+          git add meta.json products.json coop-images.json lidl-products.json eurospin-products.json sync-status.json assets/atlases
           if git diff --cached --quiet; then exit 0; fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

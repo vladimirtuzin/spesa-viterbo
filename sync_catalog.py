@@ -2,14 +2,18 @@
 
 from datetime import date, datetime, timezone
 from pathlib import Path
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
+from html.parser import HTMLParser
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
+import re
 
 import requests
 
 
 ROOT = Path(__file__).resolve().parent
 MIRROR = "https://spesa-viterbo.vercel.app/"
+COOP = "https://coopacasa.coopetruria.coop.it/"
 LIDL = "https://lidl.everli.com"
 EUROSPIN = "https://online.eurospin.com"
 TIMEOUT = 40
@@ -103,6 +107,57 @@ def refresh_mirror(session):
     return metadata, products
 
 
+class CoopImageLinks(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.product_id = None
+        self.images = {}
+
+    def handle_starttag(self, tag, attributes):
+        attrs = dict(attributes)
+        if tag == "a":
+            match = re.search(r"/(\d+)\.html(?:\?|$)", attrs.get("href", ""))
+            self.product_id = match.group(1) if match else None
+        elif tag == "img" and self.product_id and "cc-tile-image" in attrs.get("class", ""):
+            url = attrs.get("src", "")
+            if urlparse(url).hostname == "s7g10.scene7.com":
+                self.images["coop-" + self.product_id] = url + "?$pdp_large_normal_598$"
+
+    def handle_endtag(self, tag):
+        if tag == "a":
+            self.product_id = None
+
+
+def refresh_coop_images(products):
+    categories = {urlparse(p["url"]).path.split("/")[1] for p in products if p["store"] == "Coop"}
+    previous_path = ROOT / "coop-images.json"
+    previous = json.loads(previous_path.read_text(encoding="utf-8")) if previous_path.exists() else {}
+    found = {}
+
+    def fetch_category(category):
+        response = requests.get(urljoin(COOP, category + "/"),
+                                params={"sz": 2000}, timeout=80)
+        response.raise_for_status()
+        parser = CoopImageLinks()
+        parser.feed(response.text)
+        return category, parser.images
+
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        for future in as_completed([pool.submit(fetch_category, category) for category in categories]):
+            try:
+                category, images = future.result()
+                found.update(images)
+                print("Coop images:", category, len(images), flush=True)
+            except requests.RequestException as error:
+                print("Coop image category unavailable:", error, flush=True)
+
+    current_keys = {p["key"] for p in products if p["store"] == "Coop"}
+    result = {key: found.get(key) or previous.get(key) for key in current_keys if found.get(key) or previous.get(key)}
+    if len(result) < 1000:
+        raise ValueError("Coop image coverage is unexpectedly small")
+    return dict(sorted(result.items()))
+
+
 def refresh_lidl(session):
     # Public city-center address, used only to select an available catalog.
     location = {
@@ -190,10 +245,12 @@ def main():
     session = requests.Session()
     session.headers.update({"User-Agent": "SpesaViterboBooklet/1.0 (+public catalog refresh)"})
     metadata, base = refresh_mirror(session)
+    coop_images = refresh_coop_images(base)
     lidl = refresh_lidl(requests.Session())
     eurospin = refresh_eurospin(requests.Session())
     write_json("meta.json", metadata)
     write_json("products.json", base)
+    write_json("coop-images.json", coop_images)
     write_json("lidl-products.json", lidl)
     write_json("eurospin-products.json", eurospin)
     write_json("sync-status.json", {
@@ -202,7 +259,7 @@ def main():
                     "Conad": len([p for p in base if p["store"] == "Conad"]),
                     "Lidl": len(lidl), "Eurospin": len(eurospin)},
     })
-    print("Updated:", len(base), "Coop/Conad,", len(lidl), "Lidl,", len(eurospin), "Eurospin")
+    print("Updated:", len(base), "Coop/Conad,", len(coop_images), "Coop images,", len(lidl), "Lidl,", len(eurospin), "Eurospin")
 
 
 if __name__ == "__main__":

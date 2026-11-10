@@ -29,7 +29,9 @@ function cleanCatalogName(product) {
 }
 const state = {store:'all',category:'',query:'',priced:true,sort:'default',limit:40,products:[],filtered:[],favorites:new Set()};
 const map = new Map();
+const infoCache = new Map();
 let meta, searchTimer, lastFocus;
+let infoFocus;
 
 const scope = {
   all:'Coop — каталог Витербо. Conad — общий каталог. Lidl — Lidl Everli. Eurospin — онлайн-каталог; местные цены уточняйте.',
@@ -54,7 +56,7 @@ function card(product) {
   const deal = product.member_price ? '' : /^-\d+%/.test(product.note || '') ? product.note.split(' · ')[0] : product.note === 'Акционная цена' ? 'Акция' : '';
   const extra = product.member_price ? '' : product.store === 'Coop' || product.store === 'Lidl' ? product.note || '' : '';
   return `<article class="product-card" data-key="${escapeHtml(product.key)}">
-    <div class="product-media ${product.image?'':'no-image'}"><span class="store-badge ${product.store.toLowerCase()}"><img src="assets/store-icons/${storeIcons[product.store]}" alt="">${escapeHtml(product.store)}</span>${deal||product.member_price?`<span class="deal-badge">${escapeHtml(product.member_price?'С картой':deal)}</span>`:''}${imageMarkup(product)}<button class="favorite-button ${saved?'saved':''}" type="button" data-favorite="${escapeHtml(product.key)}" aria-label="${saved?'Удалить из избранного':'Добавить в избранное'}: ${escapeHtml(product.name_it)}" aria-pressed="${saved}">${saved?'♥':'♡'}</button></div>
+    <div class="product-media ${product.image?'':'no-image'}"><span class="store-badge ${product.store.toLowerCase()}"><img src="assets/store-icons/${storeIcons[product.store]}" alt="">${escapeHtml(product.store)}</span>${deal||product.member_price?`<span class="deal-badge">${escapeHtml(product.member_price?'С картой':deal)}</span>`:''}${imageMarkup(product)}${product.store==='Lidl'?'':`<button class="info-button" type="button" data-info="${escapeHtml(product.key)}" aria-label="Состав и пищевая ценность: ${escapeHtml(product.name_it)}">i</button>`}<button class="favorite-button ${saved?'saved':''}" type="button" data-favorite="${escapeHtml(product.key)}" aria-label="${saved?'Удалить из избранного':'Добавить в избранное'}: ${escapeHtml(product.name_it)}" aria-pressed="${saved}">${saved?'♥':'♡'}</button></div>
     <div class="product-content"><span class="pack">${escapeHtml(product.pack || meta.categories.find(c=>c.id===product.category)?.name || '')}</span><h4 lang="it">${escapeHtml(product.name_it)}</h4><p class="russian-name">${escapeHtml(product.name_ru || '')}</p><div class="price-row"><span class="price ${product.price?'':'unpriced'}">${price}</span></div>${member}<span class="unit-price">${escapeHtml(product.unit_price || '')}</span>${extra?`<span class="offer-note">${escapeHtml(extra)}</span>`:''}</div>
   </article>`;
 }
@@ -131,10 +133,46 @@ function renderFavorites() {
   const products=[...state.favorites].map(key=>map.get(key)).filter(Boolean);
   $('favoriteItems').innerHTML=products.length?products.map(product=>`<article class="favorite-item"><div class="favorite-thumb ${product.image?'':'empty'}">${product.image?imageMarkup(product,true):'E'}</div><div><strong>${escapeHtml(product.name_it)}</strong><small>${escapeHtml(product.store)} · ${escapeHtml(product.pack||'')}</small><b>${product.price?euro(product.price):'Цена не опубликована'}</b></div><button type="button" data-favorite="${escapeHtml(product.key)}" aria-label="Удалить ${escapeHtml(product.name_it)} из избранного">×</button></article>`).join(''):'<div class="favorites-empty"><span>♡</span><h3>Здесь пока пусто</h3><p>Нажмите на сердечко у понравившегося товара.</p></div>';
 }
+function renderInfo(info) {
+  const paragraphs = [];
+  if (info.ingredients) paragraphs.push(`<section><h3>Состав</h3><p class="info-ingredients" lang="it">${escapeHtml(info.ingredients).replace(/\n/g,'<br>')}</p></section>`);
+  if (info.allergens) paragraphs.push(`<section><h3>Аллергены</h3><p lang="it">${escapeHtml(info.allergens).replace(/\n/g,'<br>')}</p></section>`);
+  if (info.nutrition?.rows?.length) {
+    const headers = info.nutrition.headers.map(value=>`<th scope="col">${escapeHtml(value)}</th>`).join('');
+    const rows = info.nutrition.rows.map(row=>`<tr>${row.map((value,index)=>index?`<td>${escapeHtml(value??'')}</td>`:`<th scope="row">${escapeHtml(value??'')}</th>`).join('')}</tr>`).join('');
+    paragraphs.push(`<section><h3>Пищевая ценность</h3><div class="info-table-scroll"><table lang="it"><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table></div></section>`);
+  }
+  $('infoContent').innerHTML = paragraphs.length ? paragraphs.join('')+'<p class="info-footnote">Данные магазина могут измениться. Проверяйте состав и аллергены на упаковке.</p>' : '<p class="info-empty">Магазин не опубликовал состав или пищевую ценность этого товара.</p>';
+}
+async function openInfo(key) {
+  const product = map.get(key);
+  if (!product) return;
+  infoFocus = document.activeElement;
+  $('infoTitle').textContent = product.name_it;
+  $('infoStore').textContent = product.store.toUpperCase()+' · '+(product.pack||'').trim();
+  $('infoContent').innerHTML = '<p class="info-loading">Загружаем данные товара…</p>';
+  $('infoDialog').dataset.key = key;
+  $('infoDialog').showModal();
+  $('closeInfo').focus();
+  try {
+    let info = infoCache.get(key);
+    if (!info) {
+      const params = new URLSearchParams({store:product.store,url:product.url||'',key});
+      const response = await fetch('api/info?'+params);
+      if (!response.ok) throw new Error('Product info unavailable');
+      info = await response.json();
+      infoCache.set(key,info);
+    }
+    if ($('infoDialog').open && $('infoDialog').dataset.key === key) renderInfo(info);
+  } catch {
+    if ($('infoDialog').open && $('infoDialog').dataset.key === key) $('infoContent').innerHTML = '<p class="info-empty">Сейчас не удалось загрузить данные товара. Попробуйте ещё раз позже.</p>';
+  }
+}
 function openFavorites() {lastFocus=document.activeElement;renderFavorites();$('drawerOverlay').hidden=false;$('favoritesDrawer').hidden=false;document.body.style.overflow='hidden';$('closeFavorites').focus();}
 function closeFavorites() {$('drawerOverlay').hidden=true;$('favoritesDrawer').hidden=true;document.body.style.overflow='';lastFocus?.focus();}
 
 document.addEventListener('click',event=>{
+  const info=event.target.closest('[data-info]');if(info){openInfo(info.dataset.info);return;}
   const favorite=event.target.closest('[data-favorite]');if(favorite){toggleFavorite(favorite.dataset.favorite);return;}
   const open=event.target.closest('[data-open]');if(open){if(open.dataset.open==='favorites')openFavorites();else $('aboutDialog').showModal();return;}
   const store=event.target.closest('[data-store]');if(store){state.store=store.dataset.store;state.category='';render();return;}
@@ -149,15 +187,18 @@ $('closeFavorites').addEventListener('click',closeFavorites);
 $('drawerOverlay').addEventListener('click',closeFavorites);
 $('closeAbout').addEventListener('click',()=>$('aboutDialog').close());
 $('aboutDialog').addEventListener('click',event=>{if(event.target===$('aboutDialog'))$('aboutDialog').close();});
+$('closeInfo').addEventListener('click',()=>$('infoDialog').close());
+$('infoDialog').addEventListener('click',event=>{if(event.target===$('infoDialog'))$('infoDialog').close();});
+$('infoDialog').addEventListener('close',()=>infoFocus?.focus());
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('favoritesDrawer').hidden)closeFavorites();});
 
 (async()=>{
   try {
-    const responses=await Promise.all(['meta.json','products.json','lidl-products.json','eurospin-products.json'].map(path=>fetch(path)));
+    const responses=await Promise.all(['meta.json','products.json','lidl-products.json','eurospin-products.json','coop-images.json'].map(path=>fetch(path)));
     if(responses.some(response=>!response.ok))throw new Error('Catalog data unavailable');
-    const [metadata,products,lidlProducts,eurospinProducts]=await Promise.all(responses.map(response=>response.json()));
+    const [metadata,products,lidlProducts,eurospinProducts,coopImages]=await Promise.all(responses.map(response=>response.json()));
     meta=metadata;state.products=[...products,...lidlProducts,...eurospinProducts];
-    state.products.forEach(product=>{cleanCatalogName(product);product._search=normalize([product.name_it,product.name_ru,product.store].join(' '));map.set(product.key,product);});
+    state.products.forEach(product=>{if(product.store==='Coop'&&coopImages[product.key]){product.image=coopImages[product.key];product.direct_image=true;}cleanCatalogName(product);product._search=normalize([product.name_it,product.name_ru,product.store].join(' '));map.set(product.key,product);});
     try{const saved=JSON.parse(localStorage.getItem('spesa-viterbo-favorites-v1')||'[]');state.favorites=new Set(Array.isArray(saved)?saved.filter(key=>map.has(key)):[]);}catch{}
     const params=new URLSearchParams(location.search);
     if(['Coop','Conad','Lidl','Eurospin'].includes(params.get('store')))state.store=params.get('store');

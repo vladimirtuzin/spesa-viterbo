@@ -3,6 +3,7 @@
 const $ = id => document.getElementById(id);
 const euro = value => new Intl.NumberFormat('ru-RU', {style:'currency',currency:'EUR'}).format(value);
 const number = value => new Intl.NumberFormat('ru-RU').format(value);
+const productCount = value => `${number(value)} ${({one:'товар',few:'товара',many:'товаров'})[new Intl.PluralRules('ru').select(value)]}`;
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const normalize = value => String(value ?? '').normalize('NFKD').replace(/\p{Diacritic}/gu,'').toLowerCase();
 function cleanCatalogName(product) {
@@ -27,7 +28,7 @@ function cleanCatalogName(product) {
     .replace(/\b(?:бсг?|бтг|втбг|вх|кт|рт|мз)\b\.?/gi, '')
     .replace(/\s+/g, ' ').trim();
 }
-const state = {store:'all',category:'',query:'',priced:true,sort:'default',limit:40,products:[],filtered:[],favorites:new Set()};
+const state = {store:'all',category:'',query:'',priced:true,deals:false,sort:'default',limit:40,products:[],filtered:[],favorites:new Set()};
 const map = new Map();
 const infoCache = new Map();
 let meta, searchTimer, lastFocus;
@@ -53,18 +54,23 @@ function card(product) {
   const saved = state.favorites.has(product.key);
   const price = product.price ? euro(product.price) : 'Цена не опубликована';
   const member = product.member_price ? `<div class="member-offer"><span>С картой Coop</span><strong>${euro(product.member_price)}</strong><small>${escapeHtml(product.note?.split(' · ').slice(1).join(' · ') || '')}</small></div>` : '';
-  const deal = product.member_price ? '' : /^-\d+%/.test(product.note || '') ? product.note.split(' · ')[0] : product.note === 'Акционная цена' ? 'Акция' : '';
   const extra = product.member_price ? '' : product.store === 'Coop' || product.store === 'Lidl' ? product.note || '' : '';
   return `<article class="product-card" data-key="${escapeHtml(product.key)}">
-    <div class="product-media ${product.image?'':'no-image'}"><span class="store-badge ${product.store.toLowerCase()}"><img src="assets/store-icons/${storeIcons[product.store]}" alt="">${escapeHtml(product.store)}</span>${deal||product.member_price?`<span class="deal-badge">${escapeHtml(product.member_price?'С картой':deal)}</span>`:''}${imageMarkup(product)}${product.store==='Lidl'?'':`<button class="info-button" type="button" data-info="${escapeHtml(product.key)}" aria-label="Состав и пищевая ценность: ${escapeHtml(product.name_it)}">i</button>`}<button class="favorite-button ${saved?'saved':''}" type="button" data-favorite="${escapeHtml(product.key)}" aria-label="${saved?'Удалить из избранного':'Добавить в избранное'}: ${escapeHtml(product.name_it)}" aria-pressed="${saved}">${saved?'♥':'♡'}</button></div>
-    <div class="product-content"><span class="pack">${escapeHtml(product.pack || meta.categories.find(c=>c.id===product.category)?.name || '')}</span><h4 lang="it">${escapeHtml(product.name_it)}</h4><p class="russian-name">${escapeHtml(product.name_ru || '')}</p><div class="price-row"><span class="price ${product.price?'':'unpriced'}">${price}</span></div>${member}<span class="unit-price">${escapeHtml(product.unit_price || '')}</span>${extra?`<span class="offer-note">${escapeHtml(extra)}</span>`:''}</div>
+    <div class="product-media ${product.image?'':'no-image'}">${imageMarkup(product)}${product.store==='Lidl'?'':`<button class="info-button" type="button" data-info="${escapeHtml(product.key)}" aria-label="Состав и пищевая ценность: ${escapeHtml(product.name_it)}">i</button>`}<button class="favorite-button ${saved?'saved':''}" type="button" data-favorite="${escapeHtml(product.key)}" aria-label="${saved?'Удалить из избранного':'Добавить в избранное'}: ${escapeHtml(product.name_it)}" aria-pressed="${saved}">${saved?'♥':'♡'}</button></div>
+    <div class="product-content"><span class="store-line"><img src="assets/store-icons/${storeIcons[product.store]}" alt="">${escapeHtml(product.store)}</span><span class="pack">${escapeHtml(product.pack || meta.categories.find(c=>c.id===product.category)?.name || '')}</span><h4 lang="it">${escapeHtml(product.name_it)}</h4><p class="russian-name">${escapeHtml(product.name_ru || '')}</p><div class="price-row"><span class="price ${product.price?'':'unpriced'}">${price}</span></div>${member}<span class="unit-price">${escapeHtml(product.unit_price || '')}</span>${extra?`<span class="offer-note">${escapeHtml(extra)}</span>`:''}</div>
   </article>`;
+}
+
+function isDeal(product) {
+  return !!product.price && !product.future && !product.expired &&
+    (!!product.member_price || /^-\d+%/.test(product.note || '') || product.note === 'Акционная цена');
 }
 
 function matches(product, ignoreCategory=false) {
   return (state.store==='all' || product.store===state.store) &&
     (ignoreCategory || !state.category || product.category===state.category) &&
     (!state.priced || !!product.price) &&
+    (!state.deals || isDeal(product)) &&
     (!state.query || product._search.includes(normalize(state.query)));
 }
 
@@ -72,7 +78,7 @@ function renderCategories() {
   const eligible = state.products.filter(product => matches(product,true));
   const counts = new Map();
   for (const product of eligible) counts.set(product.category,(counts.get(product.category)||0)+1);
-  const categories = [{id:'',name:'Все товары',count:eligible.length},...meta.categories.map(category=>({...category,count:counts.get(category.id)||0}))];
+  const categories = [{id:'',name:state.deals?'Все скидки':'Все товары',count:eligible.length},...meta.categories.map(category=>({...category,count:counts.get(category.id)||0}))];
   $('categories').innerHTML = categories.map(category=>`<button class="category ${state.category===category.id?'active':''}" type="button" data-category="${category.id}" aria-pressed="${state.category===category.id}"><span class="category-icon" aria-hidden="true">${category.id?categoryIcons[category.id]||'◇':'▦'}</span><span>${escapeHtml(category.name)}</span><small>${number(category.count)}</small></button>`).join('');
   $('mobileCategories').innerHTML = categories.filter(category=>category.count).map(category=>`<button class="mobile-category ${state.category===category.id?'active':''}" type="button" data-category="${category.id}" aria-pressed="${state.category===category.id}">${escapeHtml(category.name)}</button>`).join('');
 }
@@ -82,14 +88,29 @@ function syncUrl() {
   if (state.store!=='all') params.set('store',state.store);
   if (state.category) params.set('category',state.category);
   if (state.query) params.set('q',state.query);
+  if (state.deals) params.set('offers','1');
   if (!state.priced) params.set('allPrices','1');
   if (state.sort!=='default') params.set('sort',state.sort);
   history.replaceState(null,'',location.pathname+(params.size?'?'+params:''));
 }
 
-function render(reset=true) {
+function updatePagination() {
+  const total=state.filtered.length;
+  const shown=Math.min(state.limit,total);
+  $('shownCount').textContent=total?`Показано ${number(shown)} из ${number(total)} · ${Math.ceil(shown/40)} из ${Math.ceil(total/40)} страниц`:'';
+  $('pageProgress').style.width=total?`${shown/total*100}%`:'0%';
+  $('loadMore').hidden=shown>=total;
+  if (shown<total) $('loadMore').innerHTML=`Показать ещё ${productCount(Math.min(40,total-shown))} <span>Страница ${Math.floor(shown/40)+1} ↓</span>`;
+}
+function showMore() {
+  const start=state.limit;
+  state.limit+=40;
+  $('products').insertAdjacentHTML('beforeend',state.filtered.slice(start,state.limit).map(card).join(''));
+  updatePagination();
+}
+function render() {
   if (!meta) return;
-  if (reset) state.limit=40;
+  state.limit=40;
   state.filtered = state.products.filter(product=>matches(product));
   const rank = new Map(meta.categories.map((category,index)=>[category.id,index]));
   state.filtered.sort((a,b)=>{
@@ -103,12 +124,16 @@ function render(reset=true) {
   });
   $('products').innerHTML = state.filtered.slice(0,state.limit).map(card).join('');
   $('emptyState').hidden = !!state.filtered.length;
-  $('categoryTitle').textContent = meta.categories.find(category=>category.id===state.category)?.name || 'Все товары';
+  $('emptyState').querySelector('h3').textContent = state.deals ? 'Скидок не найдено' : 'Пока ничего не нашлось';
+  $('emptyState').querySelector('p').textContent = state.deals ? 'В этом разделе или магазине нет опубликованных предложений. Попробуйте другой фильтр.' : 'Попробуйте другое название или откройте все разделы.';
+  const categoryName=meta.categories.find(category=>category.id===state.category)?.name;
+  $('categoryTitle').textContent = state.deals ? categoryName ? `Скидки · ${categoryName}` : 'Скидки' : categoryName || 'Все товары';
   $('scopeLabel').textContent = state.store==='all'?'ВСЕ МАГАЗИНЫ':state.store.toUpperCase();
-  $('scopeNote').textContent = scope[state.store];
-  $('resultCount').textContent = `${number(state.filtered.length)} товаров`;
-  $('shownCount').textContent = state.filtered.length?`Показано ${number(Math.min(state.limit,state.filtered.length))} из ${number(state.filtered.length)}`:'';
-  $('loadMore').hidden = state.limit>=state.filtered.length;
+  $('scopeNote').textContent = state.deals ? 'Акции и цены по карте из открытых каталогов.' : scope[state.store];
+  $('resultCount').textContent = productCount(state.filtered.length);
+  updatePagination();
+  $('onlyOffers').checked=state.deals;
+  document.querySelectorAll('[data-view]').forEach(button=>{const active=(button.dataset.view==='offers')===state.deals;button.classList.toggle('active',active);button.setAttribute('aria-pressed',active);});
   document.querySelectorAll('.store-tab').forEach(button=>{const active=button.dataset.store===state.store;button.classList.toggle('active',active);button.setAttribute('aria-pressed',active);});
   renderCategories();syncUrl();
 }
@@ -163,6 +188,16 @@ async function openInfo(key) {
       info = await response.json();
       infoCache.set(key,info);
     }
+    if (info.image && product.store === 'Coop' && !product.direct_image) {
+      product.image = info.image;
+      product.direct_image = true;
+      document.querySelectorAll('.product-card').forEach(card=>{
+        if (card.dataset.key === key) {
+          const photo = card.querySelector('.photo-window');
+          if (photo) photo.outerHTML = imageMarkup(product);
+        }
+      });
+    }
     if ($('infoDialog').open && $('infoDialog').dataset.key === key) renderInfo(info);
   } catch {
     if ($('infoDialog').open && $('infoDialog').dataset.key === key) $('infoContent').innerHTML = '<p class="info-empty">Сейчас не удалось загрузить данные товара. Попробуйте ещё раз позже.</p>';
@@ -175,14 +210,16 @@ document.addEventListener('click',event=>{
   const info=event.target.closest('[data-info]');if(info){openInfo(info.dataset.info);return;}
   const favorite=event.target.closest('[data-favorite]');if(favorite){toggleFavorite(favorite.dataset.favorite);return;}
   const open=event.target.closest('[data-open]');if(open){if(open.dataset.open==='favorites')openFavorites();else $('aboutDialog').showModal();return;}
+  const view=event.target.closest('[data-view]');if(view){state.deals=view.dataset.view==='offers';state.category='';render();return;}
   const store=event.target.closest('[data-store]');if(store){state.store=store.dataset.store;state.category='';render();return;}
   const category=event.target.closest('[data-category]');if(category){state.category=category.dataset.category;render();return;}
 });
 $('searchInput').addEventListener('input',event=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>{state.query=event.target.value.trim();render();},160);});
 $('onlyPriced').addEventListener('change',event=>{state.priced=event.target.checked;render();});
+$('onlyOffers').addEventListener('change',event=>{state.deals=event.target.checked;render();});
 $('sortSelect').addEventListener('change',event=>{state.sort=event.target.value;render();});
-$('loadMore').addEventListener('click',()=>{state.limit+=40;render(false);});
-$('resetFilters').addEventListener('click',()=>{Object.assign(state,{store:'all',category:'',query:'',priced:true,sort:'default'});$('searchInput').value='';$('onlyPriced').checked=true;$('sortSelect').value='default';render();});
+$('loadMore').addEventListener('click',showMore);
+$('resetFilters').addEventListener('click',()=>{Object.assign(state,{store:'all',category:'',query:'',priced:true,deals:false,sort:'default'});$('searchInput').value='';$('onlyPriced').checked=true;$('sortSelect').value='default';render();});
 $('closeFavorites').addEventListener('click',closeFavorites);
 $('drawerOverlay').addEventListener('click',closeFavorites);
 $('closeAbout').addEventListener('click',()=>$('aboutDialog').close());
@@ -204,11 +241,13 @@ document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('favorit
     if(['Coop','Conad','Lidl','Eurospin'].includes(params.get('store')))state.store=params.get('store');
     if(meta.categories.some(category=>category.id===params.get('category')))state.category=params.get('category');
     if(['price-asc','price-desc','name'].includes(params.get('sort')))state.sort=params.get('sort');
+    state.deals=params.get('offers')==='1';
     state.query=params.get('q')||'';state.priced=params.get('allPrices')!=='1';
     $('searchInput').value=state.query;$('onlyPriced').checked=state.priced;$('sortSelect').value=state.sort;
-    $('totalCount').textContent=number(state.products.length)+' товаров';
-    $('allStoreCount').textContent=number(state.products.length)+' товаров';
-    for(const store of ['Coop','Conad','Lidl','Eurospin'])$(''+store.toLowerCase()+'Count').textContent=number(state.products.filter(product=>product.store===store).length)+' товаров';
+    $('totalCount').textContent=productCount(state.products.length);
+    $('allStoreCount').textContent=productCount(state.products.length);
+    $('offerTotalCount').textContent=number(state.products.filter(isDeal).length);
+    for(const store of ['Coop','Conad','Lidl','Eurospin'])$(''+store.toLowerCase()+'Count').textContent=productCount(state.products.filter(product=>product.store===store).length);
     updateFavoriteCount();render();
   } catch(error) {
     console.error(error);

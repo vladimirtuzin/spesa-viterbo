@@ -3,18 +3,19 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#173b30">
-  <meta name="description" content="Продуктовый буклет Витербо: товары Coop, Conad, Lidl и Eurospin, цены, магазины и избранное.">
-  <title>Spesa Viterbo — продуктовый буклет</title>
+  <meta name="theme-color" content="#ffffff">
+  <meta name="description" content="SHOPPING BY TUZIN — удобный каталог товаров Coop, Conad, Lidl и Eurospin с ценами, скидками и избранным.">
+  <title>SHOPPING BY TUZIN — каталог продуктов</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="conditions.css">
+  <link rel="stylesheet" href="design.css">
   <script src="app.js" defer></script>
 </head>
 <body>
   <header class="site-header">
     <div class="header-inner">
-      <a class="brand" href="#top" aria-label="Spesa Viterbo — начало"><span class="brand-mark" aria-hidden="true">✳</span><span>spesa<small>VITERBO</small></span></a>
+      <a class="brand" href="#top" aria-label="SHOPPING BY TUZIN — начало"><span>SHOPPING<small>BY TUZIN</small></span></a>
       <span class="header-location"><span class="location-dot"></span> Италия · Витербо</span>
       <div class="header-actions"><button class="link-button about-trigger" type="button" data-open="about">О буклете</button><button class="favorites-trigger" type="button" data-open="favorites" aria-label="Открыть избранное"><span aria-hidden="true">♡</span><span>Избранное</span><b id="favoriteCount">0</b></button></div>
     </div>
@@ -22,27 +23,28 @@
 
   <main id="top" class="page-shell">
     <section id="catalog" class="catalog-section" aria-labelledby="catalogTitle">
-      <div class="section-heading"><div><p class="eyebrow">ЛИСТАЙТЕ КАК БУКЛЕТ</p><h1 id="catalogTitle">Каталог продуктов<span class="heading-period">.</span></h1></div><span class="section-count" id="totalCount">Загружаем…</span></div>
+      <div class="section-heading"><div><p class="eyebrow">SHOPPING BY TUZIN</p><h1 id="catalogTitle">Каталог товаров</h1></div><span class="section-count" id="totalCount">Загружаем…</span></div>
+      <nav class="quick-views" aria-label="Режим каталога"><button class="quick-view active" type="button" data-view="all" aria-pressed="true">Все товары</button><button class="quick-view" type="button" data-view="offers" aria-pressed="false">Скидки / Offerte <span id="offerTotalCount"></span></button></nav>
       <nav class="store-tabs" id="storeTabs" aria-label="Магазины">
-        <button class="store-tab active" type="button" data-store="all" aria-pressed="true"><span class="tab-logo all-logo">✳</span><span class="tab-title">Все магазины<small id="allStoreCount">—</small></span></button>
+        <button class="store-tab active" type="button" data-store="all" aria-pressed="true"><span class="tab-logo all-logo">▦</span><span class="tab-title">Все магазины<small id="allStoreCount">—</small></span></button>
         <button class="store-tab" type="button" data-store="Coop" aria-pressed="false"><span class="tab-logo coop-logo"><img src="assets/store-icons/coop.ico" alt=""></span><span class="tab-title">Coop<small id="coopCount">—</small></span></button>
         <button class="store-tab" type="button" data-store="Conad" aria-pressed="false"><span class="tab-logo conad-logo"><img src="assets/store-icons/conad.png" alt=""></span><span class="tab-title">Conad<small id="conadCount">—</small></span></button>
         <button class="store-tab" type="button" data-store="Lidl" aria-pressed="false"><span class="tab-logo lidl-logo"><img src="assets/store-icons/lidl.png" alt=""></span><span class="tab-title">Lidl<small id="lidlCount">—</small></span></button>
         <button class="store-tab" type="button" data-store="Eurospin" aria-pressed="false"><span class="tab-logo eurospin-logo"><img src="assets/store-icons/eurospin.png" alt=""></span><span class="tab-title">Eurospin<small id="eurospinCount">—</small></span></button>
       </nav>
       <div class="catalog-layout">
-        <aside class="category-rail" aria-label="Разделы каталога"><div class="rail-heading">РАЗДЕЛЫ <span>↘</span></div><nav id="categories" class="category-list"></nav><p class="rail-note">♡ Сохранённое останется на этом устройстве.</p></aside>
+        <aside class="category-rail" aria-label="Разделы каталога"><div class="rail-heading">КАТЕГОРИИ</div><nav id="categories" class="category-list"></nav></aside>
         <div class="catalog-main">
-          <div class="catalog-controls"><label class="search-box"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="m15 15 6 6"/></svg><input id="searchInput" type="search" placeholder="Найти продукт — latte, pasta, молоко…" autocomplete="off" aria-label="Поиск товаров"></label><label class="priced-filter"><input id="onlyPriced" type="checkbox" checked><span>С ценой</span></label><label class="sort-box"><span class="sr-only">Сортировка</span><select id="sortSelect"><option value="default">По разделам</option><option value="price-asc">Сначала дешевле</option><option value="price-desc">Сначала дороже</option><option value="name">По названию</option></select></label></div>
+          <div class="catalog-controls"><label class="search-box"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="m15 15 6 6"/></svg><input id="searchInput" type="search" placeholder="Найти товар или бренд" autocomplete="off" aria-label="Поиск товаров"></label><label class="offers-filter"><input id="onlyOffers" type="checkbox"><span>Только скидки</span></label><label class="priced-filter"><input id="onlyPriced" type="checkbox" checked><span>С ценой</span></label><label class="sort-box"><span class="sr-only">Сортировка</span><select id="sortSelect"><option value="default">По разделам</option><option value="price-asc">Сначала дешевле</option><option value="price-desc">Сначала дороже</option><option value="name">По названию</option></select></label></div>
           <div class="mobile-categories" id="mobileCategories" aria-label="Разделы каталога"></div>
           <div class="results-head"><div><span class="eyebrow" id="scopeLabel">ВСЕ МАГАЗИНЫ</span><h3 id="categoryTitle">Все товары</h3><p class="scope-note" id="scopeNote"></p></div><span class="results-count" id="resultCount" role="status">Загружаем товары…</span></div>
           <div class="product-grid" id="products" aria-live="polite"><p class="loading">Открываем буклет…</p></div>
           <div class="empty-state" id="emptyState" hidden><span>✳</span><h3>Пока ничего не нашлось</h3><p>Попробуйте другое название или откройте все разделы.</p><button type="button" id="resetFilters">Сбросить фильтры</button></div>
-          <div class="pagination"><button class="load-more" type="button" id="loadMore" hidden>Показать ещё <span>↓</span></button><span id="shownCount"></span></div>
+          <div class="pagination"><span id="shownCount"></span><div class="page-progress" aria-hidden="true"><span id="pageProgress"></span></div><button class="load-more" type="button" id="loadMore" hidden>Показать ещё</button></div>
         </div>
       </div>
     </section>
-    <footer class="site-footer"><div class="footer-brand">spesa <span>VITERBO</span></div><p>Продуктовый буклет по открытым каталогам. Цены и наличие уточняйте у магазина.</p><button class="inline-button" type="button" data-open="about">Источники данных ↗</button></footer>
+    <footer class="site-footer"><div class="footer-brand">SHOPPING <span>BY TUZIN</span></div><p>Каталог открытых предложений. Избранное сохраняется в браузере.</p><button class="inline-button" type="button" data-open="about">Источники данных</button></footer>
   </main>
 
   <div class="drawer-overlay" id="drawerOverlay" hidden></div>

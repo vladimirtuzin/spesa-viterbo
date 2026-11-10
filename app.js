@@ -16,7 +16,7 @@ const scope = {
   Lidl:'Ассортимент и цены Lidl Everli. Доступность зависит от выбранной зоны обслуживания.',
   Eurospin:'Онлайн-каталог Eurospin. Наличие и цена в Витербо не подтверждены.'
 };
-const priceLabel = {Coop:'Цена Coop Viterbo',Conad:'Общая цена Conad · цена в Витербо не подтверждена',Lidl:'Цена Lidl Everli',Eurospin:'Онлайн-цена Eurospin · цена в Витербо не подтверждена'};
+const storeIcons = {Coop:'coop.ico',Conad:'conad.png',Lidl:'lidl.png',Eurospin:'eurospin.png'};
 const categoryIcons = {fruit:'◒',vegetables:'♧',nuts:'◇',meat:'◖',deli:'≋',fish:'◁',dairy:'◧',cheese:'△',bread:'⌒',sweets:'◇',breakfast:'◉',pasta:'〰',pantry:'▤',baking:'⋰',ready:'▱',frozen:'❄',drinks:'◫',coffee:'☕',alcohol:'♙',special:'✧',kids:'☆',pets:'♧',care:'◍',cleaning:'✳',home:'⌂',clothes:'♢',garden:'✿',other:'▧'};
 
 function imageMarkup(product, small=false) {
@@ -32,8 +32,8 @@ function card(product) {
   const deal = product.member_price ? '' : /^-\d+%/.test(product.note || '') ? product.note.split(' · ')[0] : product.note === 'Акционная цена' ? 'Акция' : '';
   const extra = product.member_price ? '' : product.store === 'Coop' || product.store === 'Lidl' ? product.note || '' : '';
   return `<article class="product-card" data-key="${escapeHtml(product.key)}">
-    <div class="product-media ${product.image?'':'no-image'}"><span class="store-badge ${product.store.toLowerCase()}">${escapeHtml(product.store)}</span>${deal||product.member_price?`<span class="deal-badge">${escapeHtml(product.member_price?'С картой':deal)}</span>`:''}${imageMarkup(product)}<button class="favorite-button ${saved?'saved':''}" type="button" data-favorite="${escapeHtml(product.key)}" aria-label="${saved?'Удалить из избранного':'Добавить в избранное'}: ${escapeHtml(product.name_it)}" aria-pressed="${saved}">${saved?'♥':'♡'}</button></div>
-    <div class="product-content"><span class="pack">${escapeHtml(product.pack || meta.categories.find(c=>c.id===product.category)?.name || '')}</span><h4 lang="it">${escapeHtml(product.name_it)}</h4><p class="russian-name">${escapeHtml(product.name_ru || '')}</p><div class="price-row"><span class="price ${product.price?'':'unpriced'}">${price}</span></div>${member}<span class="unit-price">${escapeHtml(product.unit_price || '')}</span><span class="source-tag">${escapeHtml(priceLabel[product.store])}</span>${extra?`<span class="offer-note">${escapeHtml(extra)}</span>`:''}<a class="card-link" href="${escapeHtml(product.url)}" target="_blank" rel="noopener noreferrer" aria-label="Открыть ${escapeHtml(product.name_it)} на сайте ${escapeHtml(product.store)}">На сайте магазина <span aria-hidden="true">↗</span></a></div>
+    <div class="product-media ${product.image?'':'no-image'}"><span class="store-badge ${product.store.toLowerCase()}"><img src="assets/store-icons/${storeIcons[product.store]}" alt="">${escapeHtml(product.store)}</span>${deal||product.member_price?`<span class="deal-badge">${escapeHtml(product.member_price?'С картой':deal)}</span>`:''}${imageMarkup(product)}<button class="favorite-button ${saved?'saved':''}" type="button" data-favorite="${escapeHtml(product.key)}" aria-label="${saved?'Удалить из избранного':'Добавить в избранное'}: ${escapeHtml(product.name_it)}" aria-pressed="${saved}">${saved?'♥':'♡'}</button></div>
+    <div class="product-content"><span class="pack">${escapeHtml(product.pack || meta.categories.find(c=>c.id===product.category)?.name || '')}</span><h4 lang="it">${escapeHtml(product.name_it)}</h4><p class="russian-name">${escapeHtml(product.name_ru || '')}</p><div class="price-row"><span class="price ${product.price?'':'unpriced'}">${price}</span></div>${member}<span class="unit-price">${escapeHtml(product.unit_price || '')}</span>${extra?`<span class="offer-note">${escapeHtml(extra)}</span>`:''}</div>
   </article>`;
 }
 
@@ -143,7 +143,6 @@ document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('favorit
     if(['price-asc','price-desc','name'].includes(params.get('sort')))state.sort=params.get('sort');
     state.query=params.get('q')||'';state.priced=params.get('allPrices')!=='1';
     $('searchInput').value=state.query;$('onlyPriced').checked=state.priced;$('sortSelect').value=state.sort;
-    $('catalogDate').textContent=new Date(meta.date+'T12:00:00').toLocaleDateString('ru-RU');
     $('totalCount').textContent=number(state.products.length)+' товаров';
     $('allStoreCount').textContent=number(state.products.length)+' товаров';
     for(const store of ['Coop','Conad','Lidl','Eurospin'])$(''+store.toLowerCase()+'Count').textContent=number(state.products.filter(product=>product.store===store).length)+' товаров';

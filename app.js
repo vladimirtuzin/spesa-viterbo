@@ -5,6 +5,28 @@ const euro = value => new Intl.NumberFormat('ru-RU', {style:'currency',currency:
 const number = value => new Intl.NumberFormat('ru-RU').format(value);
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const normalize = value => String(value ?? '').normalize('NFKD').replace(/\p{Diacritic}/gu,'').toLowerCase();
+function cleanCatalogName(product) {
+  if (product.store !== 'Coop') return;
+  const original = product.name_it;
+  const freshCodes = !['care','cleaning','home','clothes','garden','pets'].includes(product.category) &&
+    /\b(?:es|it)\s+\d+(?:[-/]\d+|\+)?(?=\s|$|i{1,2}\^)|\bi{1,2}\^|\bsf\b/i.test(original);
+  const packageCodes = /\b(?:bs|btg|vtbg|vs|vh|ct|rt|mz|jsk)\b/i;
+  if (!freshCodes && !packageCodes.test(original) && !/f\.lli\s+orsero/i.test(original)) return;
+  const clean = name => {
+    let result = name.replace(/\bf\.lli\s+orsero\b/gi, 'Orsero');
+    if (freshCodes) result = result
+      .replace(/\b(?:es|it)\s+\d+(?:[-/]\d+|\+)?(?=\s|$|i{1,2}\^)/gi, '')
+      .replace(/\b(?:es|it)\s+(?=i{1,2}\^)/gi, '')
+      .replace(/\bi{1,2}\^/gi, '')
+      .replace(/\b(?:es|it)(?=\s+(?:bs|btg|vtbg|vs|vh|ct|rt|mz|jsk)\b)/gi, '');
+    return result.replace(/\b(?:sf|bs|btg|vtbg|vs|vh|ct|rt|mz|jsk)\b\.?/gi, '')
+      .replace(/\s+/g, ' ').trim();
+  };
+  product.name_it = clean(original);
+  product.name_ru = product.key === 'coop-1258361' ? 'Ананас Gold Orsero' : freshCodes ? '' : clean(product.name_ru || '')
+    .replace(/\b(?:бсг?|бтг|втбг|вх|кт|рт|мз)\b\.?/gi, '')
+    .replace(/\s+/g, ' ').trim();
+}
 const state = {store:'all',category:'',query:'',priced:true,sort:'default',limit:40,products:[],filtered:[],favorites:new Set()};
 const map = new Map();
 let meta, searchTimer, lastFocus;
@@ -135,7 +157,7 @@ document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('favorit
     if(responses.some(response=>!response.ok))throw new Error('Catalog data unavailable');
     const [metadata,products,lidlProducts,eurospinProducts]=await Promise.all(responses.map(response=>response.json()));
     meta=metadata;state.products=[...products,...lidlProducts,...eurospinProducts];
-    state.products.forEach(product=>{product._search=normalize([product.name_it,product.name_ru,product.store].join(' '));map.set(product.key,product);});
+    state.products.forEach(product=>{cleanCatalogName(product);product._search=normalize([product.name_it,product.name_ru,product.store].join(' '));map.set(product.key,product);});
     try{const saved=JSON.parse(localStorage.getItem('spesa-viterbo-favorites-v1')||'[]');state.favorites=new Set(Array.isArray(saved)?saved.filter(key=>map.has(key)):[]);}catch{}
     const params=new URLSearchParams(location.search);
     if(['Coop','Conad','Lidl','Eurospin'].includes(params.get('store')))state.store=params.get('store');

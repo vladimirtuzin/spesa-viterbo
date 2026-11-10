@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#173b30">
+  <meta name="description" content="Продуктовый буклет Витербо: товары Coop, Conad, Lidl и Eurospin, цены, магазины и избранное.">
+  <title>Spesa Viterbo — продуктовый буклет</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="conditions.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="#top" aria-label="Spesa Viterbo — начало"><span class="brand-mark" aria-hidden="true">✳</span><span>spesa<small>VITERBO</small></span></a>
+      <span class="header-location"><span class="location-dot"></span> Италия · Витербо</span>
+      <div class="header-actions"><button class="link-button about-trigger" type="button" data-open="about">О буклете</button><button class="favorites-trigger" type="button" data-open="favorites" aria-label="Открыть избранное"><span aria-hidden="true">♡</span><span>Избранное</span><b id="favoriteCount">0</b></button></div>
+    </div>
+  </header>
+
+  <main id="top" class="page-shell">
+    <section class="hero" aria-labelledby="heroTitle">
+      <div class="hero-copy"><p class="eyebrow">ПРОДУКТЫ ВИТЕРБО · ВЫПУСК 01 / 2026</p><h1 id="heroTitle">Выбирайте с удовольствием.<br><em>Покупайте с умом.</em></h1><p class="hero-description">Листайте товары из каталогов магазинов, смотрите цену и сохраняйте понравившееся. Всё в одном спокойном буклете.</p><a class="hero-link" href="#catalog">Смотреть товары <span aria-hidden="true">↘</span></a></div>
+      <div class="hero-art" aria-hidden="true"><div class="hero-orbit orbit-one"></div><div class="hero-orbit orbit-two"></div><div class="art-tag">BUONA<br>SPESA!</div><div class="art-center"><span>4</span><small>магазина<br>в одном месте</small></div><div class="art-star">✳</div></div>
+      <div class="hero-foot"><span>COOP · CONAD · LIDL · EUROSPIN</span><span>Каталог: <time id="catalogDate">10.11.2026</time></span></div>
+    </section>
+
+    <section class="notice-bar" aria-label="О данных"><span class="notice-icon">i</span><p>Цены и ассортимент зависят от магазина. Скидки по карте и сроки акций указаны на карточках. <button class="inline-button" type="button" data-open="about">Подробнее об источниках ↗</button></p></section>
+
+    <section id="catalog" class="catalog-section" aria-labelledby="catalogTitle">
+      <div class="section-heading"><div><p class="eyebrow">ЛИСТАЙТЕ КАК БУКЛЕТ</p><h2 id="catalogTitle">Каталог продуктов<span class="heading-period">.</span></h2></div><span class="section-count" id="totalCount">Загружаем…</span></div>
+      <nav class="store-tabs" id="storeTabs" aria-label="Магазины">
+        <button class="store-tab active" type="button" data-store="all" aria-pressed="true"><span class="tab-logo all-logo">✳</span><span class="tab-title">Все магазины<small id="allStoreCount">—</small></span></button>
+        <button class="store-tab" type="button" data-store="Coop" aria-pressed="false"><span class="tab-logo coop-logo">coop</span><span class="tab-title">Coop<small id="coopCount">—</small></span></button>
+        <button class="store-tab" type="button" data-store="Conad" aria-pressed="false"><span class="tab-logo conad-logo">C</span><span class="tab-title">Conad<small id="conadCount">—</small></span></button>
+        <button class="store-tab" type="button" data-store="Lidl" aria-pressed="false"><span class="tab-logo lidl-logo">Lidl</span><span class="tab-title">Lidl<small id="lidlCount">—</small></span></button>
+        <button class="store-tab" type="button" data-store="Eurospin" aria-pressed="false"><span class="tab-logo eurospin-logo">E</span><span class="tab-title">Eurospin<small id="eurospinCount">—</small></span></button>
+      </nav>
+      <div class="catalog-layout">
+        <aside class="category-rail" aria-label="Разделы каталога"><div class="rail-heading">РАЗДЕЛЫ <span>↘</span></div><nav id="categories" class="category-list"></nav><p class="rail-note">♡ Сохранённое останется на этом устройстве.</p></aside>
+        <div class="catalog-main">
+          <div class="catalog-controls"><label class="search-box"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="m15 15 6 6"/></svg><input id="searchInput" type="search" placeholder="Найти продукт — latte, pasta, молоко…" autocomplete="off" aria-label="Поиск товаров"></label><label class="priced-filter"><input id="onlyPriced" type="checkbox" checked><span>С ценой</span></label><label class="sort-box"><span class="sr-only">Сортировка</span><select id="sortSelect"><option value="default">По разделам</option><option value="price-asc">Сначала дешевле</option><option value="price-desc">Сначала дороже</option><option value="name">По названию</option></select></label></div>
+          <div class="mobile-categories" id="mobileCategories" aria-label="Разделы каталога"></div>
+          <div class="results-head"><div><span class="eyebrow" id="scopeLabel">ВСЕ МАГАЗИНЫ</span><h3 id="categoryTitle">Все товары</h3><p class="scope-note" id="scopeNote"></p></div><span class="results-count" id="resultCount" role="status">Загружаем товары…</span></div>
+          <div class="product-grid" id="products" aria-live="polite"><p class="loading">Открываем буклет…</p></div>
+          <div class="empty-state" id="emptyState" hidden><span>✳</span><h3>Пока ничего не нашлось</h3><p>Попробуйте другое название или откройте все разделы.</p><button type="button" id="resetFilters">Сбросить фильтры</button></div>
+          <div class="pagination"><button class="load-more" type="button" id="loadMore" hidden>Показать ещё <span>↓</span></button><span id="shownCount"></span></div>
+        </div>
+      </div>
+    </section>
+    <footer class="site-footer"><div class="footer-brand">spesa <span>VITERBO</span></div><p>Продуктовый буклет по открытым каталогам. Цены и наличие уточняйте у магазина.</p><button class="inline-button" type="button" data-open="about">Источники данных ↗</button></footer>
+  </main>
+
+  <div class="drawer-overlay" id="drawerOverlay" hidden></div>
+  <aside class="favorites-drawer" id="favoritesDrawer" role="dialog" aria-modal="true" aria-labelledby="favoritesTitle" hidden><div class="drawer-heading"><div><span class="eyebrow">ВАША ПОДБОРКА</span><h2 id="favoritesTitle">Избранное<span class="heading-period">.</span></h2></div><button class="close-button" type="button" id="closeFavorites" aria-label="Закрыть избранное">×</button></div><p class="drawer-intro">Сохраняйте идеи для покупки. Избранное хранится только в этом браузере.</p><div class="favorite-items" id="favoriteItems"></div></aside>
+
+  <dialog id="aboutDialog" class="about-dialog"><div class="dialog-heading"><div><span class="eyebrow">ПРОЗРАЧНО О ДАННЫХ</span><h2>О буклете<span class="heading-period">.</span></h2></div><button class="close-button" type="button" id="closeAbout" aria-label="Закрыть">×</button></div><div class="about-body"><p>Открытые каталоги обновляются ежедневно. Сайт не оформляет заказы и не показывает корзину. Цены могут измениться; переход на карточке ведёт к первоисточнику. Плашки у товаров показывают скидку, цену по карте или другое условие, если оно есть в источнике.</p><h3>Coop · Витербо</h3><p>Каталог магазина Viterbo De Lellis для самовывоза. На карточке показана обычная цена; цена по карте Coop указана отдельно.</p><a href="https://coopacasa.coopetruria.coop.it/" target="_blank" rel="noopener noreferrer">Открыть Coop ↗</a><h3>Conad · общий каталог</h3><p>Для части товаров сайт Conad скрывает цену без выбора магазина. На таких карточках указано «Цена не опубликована». Местная цена Витербо не подтверждена.</p><a href="https://spesaonline.conad.it/home" target="_blank" rel="noopener noreferrer">Открыть Conad ↗</a><h3>Lidl · Everli</h3><p>Ассортимент и цены Lidl Everli зависят от выбранной зоны обслуживания. Доступность в Витербо не подтверждена.</p><a href="https://lidl.everli.com/" target="_blank" rel="noopener noreferrer">Открыть Lidl Everli ↗</a><h3>Eurospin · онлайн-каталог</h3><p>Открытый онлайн-каталог Eurospin. Наличие и цена в Витербо не подтверждены.</p><a href="https://online.eurospin.com/" target="_blank" rel="noopener noreferrer">Открыть Eurospin ↗</a><p class="about-footnote">Названия на русском в исходном каталоге переведены автоматически. Точное наименование сохранено на итальянском. Изображения из открытых каталогов магазинов.</p></div></dialog>
+  <div class="toast" id="toast" role="status" hidden></div>
+</body>
+</html>

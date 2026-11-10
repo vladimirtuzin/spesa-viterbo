@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+*.tmp
+*-sample.html
+*-main.js
+*-core.js
+*-category.js
+inspect_tmp.py

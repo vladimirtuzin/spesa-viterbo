@@ -39,6 +39,7 @@ with sync_playwright() as p:
     chrome = Path(os.environ.get("PROGRAMFILES", "C:/Program Files")) / "Google/Chrome/Application/chrome.exe"
     browser = p.chromium.launch(**({"executable_path": str(chrome)} if chrome.exists() else {}))
     page = browser.new_page(viewport={"width": 1440, "height": 1000})
+    page.add_init_script("localStorage.setItem('shopping-by-tuzin-entry-v1','no')")
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     card = opened_card(page)
@@ -111,6 +112,7 @@ with sync_playwright() as p:
 
     touch = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
     mobile = touch.new_page()
+    mobile.add_init_script("localStorage.setItem('shopping-by-tuzin-entry-v1','no')")
     card = opened_card(mobile)
     card.locator("[data-info]").click()
     ready(mobile)

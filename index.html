@@ -6,12 +6,24 @@
   <meta name="theme-color" content="#f7f8f4">
   <meta name="description" content="SHOPPING BY TUZIN — продукты Coop, Conad, Lidl и Eurospin: цены, скидки, состав и ваш список покупок.">
   <title>SHOPPING BY TUZIN — продукты и цены</title>
-  <link rel="icon" href="favicon.svg?v=20261111-details-v8" type="image/svg+xml">
+  <link rel="icon" href="favicon.svg?v=20261111-entry-v1" type="image/svg+xml">
   <link rel="preload" href="assets/fonts/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="style.css?v=20261111-details-v8">
-  <script src="app.js?v=20261111-details-v8" defer></script>
+  <link rel="stylesheet" href="style.css?v=20261111-entry-v1">
+  <script src="app.js?v=20261111-entry-v1" defer></script>
 </head>
 <body>
+  <main class="entry-gate" id="entryGate">
+    <section class="entry-question" id="entryQuestion" aria-labelledby="entryTitle">
+      <p class="entry-brand">SHOPPING BY TUZIN</p>
+      <h1 id="entryTitle" tabindex="-1">Вас зовут Лена?</h1>
+      <form id="entryForm" aria-labelledby="entryTitle">
+        <button type="submit" value="yes">Да</button>
+        <button type="submit" class="entry-no" value="no">Нет</button>
+      </form>
+    </section>
+    <div class="entry-denied" id="entryDenied" tabindex="-1" aria-label="Доступ закрыт" hidden><img src="assets/entry-denied.png" alt="Доступ закрыт" width="503" height="720"></div>
+  </main>
+  <div id="siteContent" hidden>
   <a class="skip-link" href="#products">К товарам</a>
   <header class="site-header">
     <div class="header-inner">
@@ -74,5 +86,6 @@
   </aside>
   <dialog id="aboutDialog" class="about-dialog"><div class="dialog-heading"><div><span class="eyebrow">ПРОЗРАЧНО О ДАННЫХ</span><h2>О каталоге<span class="heading-period">.</span></h2></div><button class="close-button" type="button" id="closeAbout" aria-label="Закрыть">×</button></div><div class="about-body"><p>Открытые каталоги обновляются ежедневно. Цены могут измениться. Условия скидок и цены по карте указаны у соответствующих товаров.</p><h3>Как собрана подборка ПП</h3><p>В подборку входят явно свежие овощи и фрукты, йогурты с сахаром и жирами до 5 г на 100 г, молоко с жирами до 1,5 г на 100 г/мл и напитки без сахара. Числовые критерии применяются только там, где магазин публикует пищевую ценность.</p><h3>Coop · Витербо</h3><p>Каталог магазина Viterbo De Lellis для самовывоза. На карточке показана обычная цена; цена по карте Coop указана отдельно.</p><a href="https://coopacasa.coopetruria.coop.it/" target="_blank" rel="noopener noreferrer">Открыть Coop ↗</a><h3>Conad · общий каталог</h3><p>Для части товаров сайт Conad скрывает цену без выбора магазина. Такие товары видны в каталоге с надписью «Нет цены»; добавить их в корзину нельзя. Местная цена Витербо не подтверждена.</p><a href="https://spesaonline.conad.it/home" target="_blank" rel="noopener noreferrer">Открыть Conad ↗</a><h3>Lidl · Everli</h3><p>Ассортимент и цены Lidl Everli зависят от выбранной зоны обслуживания. Доступность в Витербо не подтверждена.</p><a href="https://lidl.everli.com/" target="_blank" rel="noopener noreferrer">Открыть Lidl Everli ↗</a><h3>Eurospin · онлайн-каталог</h3><p>Открытый онлайн-каталог Eurospin. Наличие и цена в Витербо не подтверждены.</p><a href="https://online.eurospin.com/" target="_blank" rel="noopener noreferrer">Открыть Eurospin ↗</a><p class="about-footnote">Названия на русском в исходном каталоге переведены автоматически. Точное наименование сохранено на итальянском. Изображения из открытых каталогов магазинов.</p></div></dialog>
   <div class="toast" id="toast" role="status" hidden></div>
+  </div>
 </body>
 </html>

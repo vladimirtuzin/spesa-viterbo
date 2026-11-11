@@ -1,5 +1,27 @@
 'use strict';
 const $ = id => document.getElementById(id);
+async function checkEntry(){
+  const gate=$('entryGate'),content=$('siteContent');
+  let allowed=false;
+  try{allowed=localStorage.getItem('shopping-by-tuzin-entry-v1')==='no';}catch{}
+  try{allowed ||= document.cookie.split(';').some(cookie=>cookie.trim()==='tuzin_entry=no');}catch{}
+  const enter=()=>{gate.hidden=true;content.hidden=false;};
+  if(allowed){enter();return true;}
+  $('entryTitle').focus({preventScroll:true});
+  return new Promise(resolve=>{
+    $('entryForm').addEventListener('submit',event=>{
+      event.preventDefault();
+      if(event.submitter?.value==='no'){
+        try{localStorage.setItem('shopping-by-tuzin-entry-v1','no');}catch{}
+        try{document.cookie=`tuzin_entry=no; Max-Age=31536000; Path=/; SameSite=Lax${location.protocol==='https:'?'; Secure':''}`;}catch{}
+        enter();$('categoryTitle').setAttribute('tabindex','-1');$('categoryTitle').focus({preventScroll:true});resolve(true);
+      }else if(event.submitter?.value==='yes'){
+        $('entryQuestion').hidden=true;$('entryDenied').hidden=false;gate.classList.add('denied');$('entryDenied').focus({preventScroll:true});resolve(false);
+        window.addEventListener('pageshow',event=>{if(event.persisted)location.reload();});
+      }
+    });
+  });
+}
 const euro = value => new Intl.NumberFormat('ru-RU',{style:'currency',currency:'EUR'}).format(value);
 const number = value => new Intl.NumberFormat('ru-RU').format(value);
 const productCount = value => `${number(value)} ${({one:'товар',few:'товара',many:'товаров'})[new Intl.PluralRules('ru').select(value)]}`;
@@ -244,6 +266,7 @@ document.addEventListener('keydown',event=>{
   }
 });
 (async()=>{
+  if(!await checkEntry())return;
   try{
     const responses=await Promise.all(['meta.json','products.json','lidl-products.json','eurospin-products.json','coop-images.json','product-attributes.json','product-info-index.json','catalog-taxonomy.json'].map(path=>fetch(path,{cache:'no-cache'})));
     if(responses.some(response=>!response.ok))throw new Error('Catalog data unavailable');

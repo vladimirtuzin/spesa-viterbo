@@ -33,6 +33,7 @@ with sync_playwright() as p:
     chrome = Path(os.environ.get("PROGRAMFILES", "C:/Program Files")) / "Google/Chrome/Application/chrome.exe"
     browser = p.chromium.launch(**({"executable_path": str(chrome)} if chrome.exists() else {}))
     page = browser.new_page(viewport={"width": 1440, "height": 1000})
+    page.add_init_script("localStorage.setItem('shopping-by-tuzin-entry-v1','no')")
     errors = []
     page.on("pageerror", lambda e: errors.append(str(e)))
     navigate(page)
@@ -109,6 +110,7 @@ with sync_playwright() as p:
 
     mobile = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
     mp = mobile.new_page()
+    mp.add_init_script("localStorage.setItem('shopping-by-tuzin-entry-v1','no')")
     mp.on("pageerror", lambda e: errors.append(str(e)))
     navigate(mp)
     mp.locator("#openFilters").click()

@@ -1,7 +1,6 @@
 """Product labels from the stores' public product pages and catalog API."""
 
-from http.server import BaseHTTPRequestHandler
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import urlparse
 import json
 import re
 
@@ -109,27 +108,3 @@ def product_info(store, url, key):
     response = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=15)
     response.raise_for_status()
     return (parse_coop if store == "Coop" else parse_conad)(response.text)
-
-
-def serve_info(request):
-    params = parse_qs(urlparse(request.path).query)
-    try:
-        info = product_info(params.get("store", [""])[0], params.get("url", [""])[0], params.get("key", [""])[0])
-        status = 200
-    except ValueError as error:
-        info, status = {"error": str(error)}, 400
-    except (requests.RequestException, KeyError, TypeError, json.JSONDecodeError):
-        info, status = {"error": "Product information is temporarily unavailable"}, 502
-    body = json.dumps(info, ensure_ascii=False).encode("utf-8")
-    request.send_response(status)
-    request.send_header("Content-Type", "application/json; charset=utf-8")
-    request.send_header("Content-Length", str(len(body)))
-    if status == 200:
-        request.send_header("Cache-Control", "public, s-maxage=86400, stale-while-revalidate=604800")
-    request.end_headers()
-    request.wfile.write(body)
-
-
-class handler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        serve_info(self)

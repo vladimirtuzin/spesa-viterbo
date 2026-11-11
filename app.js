@@ -28,25 +28,20 @@ function cleanCatalogName(product) {
     .replace(/\b(?:бсг?|бтг|втбг|вх|кт|рт|мз)\b\.?/gi, '')
     .replace(/\s+/g, ' ').trim();
 }
-const state = {store:'all',category:'',query:'',priced:true,deals:false,pp:false,kind:'',noSugar:false,lactoseFree:false,sugarMax:'',fatMax:'',sort:'default',limit:40,products:[],filtered:[],favorites:new Set()};
+const state = {store:'all',category:'',query:'',deals:false,pp:false,noSugar:false,lactoseFree:false,sugarMax:'',fatMax:'',sort:'default',limit:40,products:[],filtered:[],favorites:new Set(),cart:new Map()};
 const map = new Map();
 const infoCache = new Map();
-let meta, searchTimer, lastFocus;
+const infoShards = new Map();
+let meta, infoIndex, searchTimer, lastFocus;
 let infoFocus;
 
-const scope = {
-  all:'Coop — каталог Витербо. Conad — общий каталог. Lidl — Lidl Everli. Eurospin — онлайн-каталог; местные цены уточняйте.',
-  Coop:'Coop Viterbo De Lellis · самовывоз. Обычная цена показана крупно; цена по карте указана отдельно.',
-  Conad:'Открытый общий каталог. Цена и наличие конкретного магазина Витербо не подтверждены.',
-  Lidl:'Ассортимент и цены Lidl Everli. Доступность зависит от выбранной зоны обслуживания.',
-  Eurospin:'Онлайн-каталог Eurospin. Наличие и цена в Витербо не подтверждены.'
-};
 const storeIcons = {Coop:'coop.ico',Conad:'conad.png',Lidl:'lidl.png',Eurospin:'eurospin.png'};
-const kinds = {soda:{name:'Газировка',category:'drinks'},yogurt:{name:'Йогурты',category:'dairy'},milk:{name:'Молоко',category:'dairy'}};
-const categoryIcons = {fruit:'◒',vegetables:'♧',nuts:'◇',meat:'◖',deli:'≋',fish:'◁',dairy:'◧',cheese:'△',bread:'⌒',sweets:'◇',breakfast:'◉',pasta:'〰',pantry:'▤',baking:'⋰',ready:'▱',frozen:'❄',drinks:'◫',coffee:'☕',alcohol:'♙',special:'✧',kids:'☆',pets:'♧',care:'◍',cleaning:'✳',home:'⌂',clothes:'♢',garden:'✿',other:'▧'};
+const heart = saved => `<svg viewBox="0 0 24 24" aria-hidden="true"${saved?' class="filled"':''}><path d="M20.8 4.6a5.4 5.4 0 0 0-7.7 0L12 5.7l-1.1-1.1a5.4 5.4 0 0 0-7.7 7.6L12 21l8.8-8.8a5.4 5.4 0 0 0 0-7.6Z"/></svg>`;
+const infoIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v6M12 7v.5"/></svg>';
+const cartIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 3h3l2.1 12h12.4l2-9H6"/><circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/></svg>';
 
 function imageMarkup(product, small=false) {
-  if (!product.image) return `<span class="placeholder-art">EUROSPIN<small>ONLINE</small></span>`;
+  if (!product.image) return '<span class="placeholder-art"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="m4 17 5-5 4 4 3-3 5 5"/><circle cx="15" cy="8" r="2"/></svg><small>Нет изображения</small></span>';
   if (product.direct_image) return `<div class="photo-window direct"><img src="${escapeHtml(product.image)}" alt="${small?'':escapeHtml(product.name_it)}" loading="lazy" decoding="async"></div>`;
   return `<div class="photo-window"><img src="${escapeHtml(product.image)}" alt="${small?'':escapeHtml(product.name_it)}" loading="lazy" decoding="async" style="width:${product.sprite_columns*100}%;height:${product.sprite_rows*100}%;left:-${product.sprite_x*100}%;top:-${product.sprite_y*100}%"></div>`;
 }
@@ -56,10 +51,45 @@ function card(product) {
   const price = product.price ? euro(product.price) : 'Цена не опубликована';
   const member = product.member_price ? `<div class="member-offer"><span>С картой Coop</span><strong>${euro(product.member_price)}</strong><small>${escapeHtml(product.note?.split(' · ').slice(1).join(' · ') || '')}</small></div>` : '';
   const extra = product.member_price ? '' : product.store === 'Coop' || product.store === 'Lidl' ? product.note || '' : '';
-  return `<article class="product-card" data-key="${escapeHtml(product.key)}">
-    <div class="product-media ${product.image?'':'no-image'}">${imageMarkup(product)}${product.store==='Lidl'?'':`<button class="info-button" type="button" data-info="${escapeHtml(product.key)}" aria-label="Состав и пищевая ценность: ${escapeHtml(product.name_it)}">i</button>`}<button class="favorite-button ${saved?'saved':''}" type="button" data-favorite="${escapeHtml(product.key)}" aria-label="${saved?'Удалить из избранного':'Добавить в избранное'}: ${escapeHtml(product.name_it)}" aria-pressed="${saved}">${saved?'♥':'♡'}</button></div>
-    <div class="product-content"><span class="store-line"><img src="assets/store-icons/${storeIcons[product.store]}" alt="">${escapeHtml(product.store)}</span><span class="pack">${escapeHtml(product.pack || meta.categories.find(c=>c.id===product.category)?.name || '')}</span><h4 lang="it">${escapeHtml(product.name_it)}</h4><p class="russian-name">${escapeHtml(product.name_ru || '')}</p><div class="price-row"><span class="price ${product.price?'':'unpriced'}">${price}</span></div>${member}<span class="unit-price">${escapeHtml(product.unit_price || '')}</span>${extra?`<span class="offer-note">${escapeHtml(extra)}</span>`:''}</div>
+  return `<article class="product-card ${product._hasInfo?'has-specs':''}" data-key="${escapeHtml(product.key)}">
+    <div class="product-media ${product.image?'':'no-image'}">${imageMarkup(product)}<span class="card-store"><img src="assets/store-icons/${storeIcons[product.store]}" alt="">${escapeHtml(product.store)}</span><div class="card-actions">${product._hasInfo?`<button class="info-button" type="button" data-info="${escapeHtml(product.key)}" aria-label="Состав и пищевая ценность: ${escapeHtml(product.name_it)}">${infoIcon}</button>`:''}<button class="favorite-button ${saved?'saved':''}" type="button" data-favorite="${escapeHtml(product.key)}" aria-label="${saved?'Удалить из избранного':'Добавить в избранное'}: ${escapeHtml(product.name_it)}" aria-pressed="${saved}">${heart(saved)}</button></div></div>
+    <div class="product-content"><span class="pack">${escapeHtml(product.pack || meta.categories.find(c=>c.id===product.category)?.name || '')}</span><h4 lang="it">${escapeHtml(product.name_it)}</h4><p class="russian-name">${escapeHtml(product.name_ru || '')}</p><div class="price-row"><span class="price ${product.price?'':'unpriced'}">${price}</span></div>${member}<span class="unit-price">${escapeHtml(product.unit_price || '')}</span>${extra?`<span class="offer-note">${escapeHtml(extra)}</span>`:''}<div class="cart-card-control" data-cart-control="${escapeHtml(product.key)}">${cartControl(product)}</div></div>
+    ${product._hasInfo?`<div class="product-specs"><strong>Характеристики</strong><div class="spec-scroll" data-spec-content><p>Загружаем…</p></div><button class="text-button" type="button" data-full-info="${escapeHtml(product.key)}">Открыть полностью</button></div>`:''}
   </article>`;
+}
+function cartControl(product) {
+  const quantity=state.cart.get(product.key)||0;
+  const key=escapeHtml(product.key);
+  return quantity?`<div class="card-quantity"><button type="button" data-cart-change="${key}" data-delta="-1" aria-label="Уменьшить количество: ${escapeHtml(product.name_it)}">−</button><button type="button" data-open="cart" class="quantity-status">${quantity} в кошике</button><button type="button" data-cart-change="${key}" data-delta="1" aria-label="Увеличить количество: ${escapeHtml(product.name_it)}">+</button></div>`:`<button type="button" class="add-cart" data-add-cart="${key}">${cartIcon}<span>Добавить в кошик</span></button>`;
+}
+
+function updateCartCount() {$('cartCount').textContent=number([...state.cart.values()].reduce((sum,quantity)=>sum+quantity,0));}
+function setCartQuantity(key,quantity) {
+  if(!map.has(key))return;
+  const active=document.activeElement;
+  const wasInDrawer=active?.closest('#cartDrawer');
+  const focusDelta=active?.dataset.cartChange?active.dataset.delta:active?.dataset.addCart?'1':null;
+  const removed=active?.hasAttribute('data-cart-remove');
+  quantity=Math.max(0,Math.min(999,Math.trunc(quantity)));
+  if(quantity)state.cart.set(key,quantity);else state.cart.delete(key);
+  try{localStorage.setItem('shopping-by-tuzin-cart-v1',JSON.stringify([...state.cart]));}catch{showToast('Браузер не сохранил корзину');}
+  updateCartCount();
+  document.querySelectorAll('[data-cart-control]').forEach(element=>{if(element.dataset.cartControl===key)element.innerHTML=cartControl(map.get(key));});
+  if(!$('cartDrawer').hidden)renderCart();
+  if(focusDelta!==null) {
+    const scope=wasInDrawer?$('cartDrawer'):$('products');
+    const next=[...scope.querySelectorAll('[data-cart-change]')].find(button=>button.dataset.cartChange===key&&button.dataset.delta===focusDelta);
+    const add=[...scope.querySelectorAll('[data-add-cart]')].find(button=>button.dataset.addCart===key);
+    (next||add||$('closeCart')).focus({preventScroll:true});
+  } else if(removed)($('cartItems').querySelector('[data-cart-remove]')||$('closeCart')).focus({preventScroll:true});
+}
+function renderCart() {
+  const entries=[...state.cart].map(([key,quantity])=>({product:map.get(key),quantity})).filter(entry=>entry.product);
+  const stores=[...new Set(entries.map(entry=>entry.product.store))];
+  $('cartItems').innerHTML=entries.length?stores.map(store=>`<section class="cart-group"><h3><img src="assets/store-icons/${storeIcons[store]}" alt="">${escapeHtml(store)}</h3>${entries.filter(entry=>entry.product.store===store).map(({product,quantity})=>`<article class="cart-item"><div class="favorite-thumb">${imageMarkup(product,true)}</div><div class="cart-item-body"><strong>${escapeHtml(product.name_it)}</strong><small>${escapeHtml(product.pack||'')}</small><div class="cart-item-bottom"><div class="quantity-stepper"><button type="button" data-cart-change="${escapeHtml(product.key)}" data-delta="-1" aria-label="Уменьшить количество">−</button><output>${quantity}</output><button type="button" data-cart-change="${escapeHtml(product.key)}" data-delta="1" aria-label="Увеличить количество">+</button></div><b>${product.price?euro(product.price*quantity):'—'}</b></div></div><button class="remove-cart" type="button" data-cart-remove="${escapeHtml(product.key)}" aria-label="Удалить ${escapeHtml(product.name_it)} из корзины">×</button></article>`).join('')}</section>`).join(''):'<div class="favorites-empty"><span>'+cartIcon+'</span><h3>В корзине пока пусто</h3><p>Добавьте товары из каталога.</p></div>';
+  $('cartFooter').hidden=!entries.length;
+  $('cartTotal').textContent=euro(entries.reduce((sum,{product,quantity})=>sum+(product.price||0)*quantity,0));
+  $('cartTotalLabel').textContent=entries.some(({product})=>!product.price)?'По опубликованным ценам':'Итого';
 }
 
 function isDeal(product) {
@@ -81,14 +111,13 @@ function ppRank(product) {
   return null;
 }
 
-function matches(product, ignoreCategory=false, ignoreStore=false, ignoreKind=false, ignoreView=false, ignoreAttributes=false) {
+function matches(product, {ignoreCategory=false,ignoreStore=false,ignoreView=false,ignoreAttributes=false}={}) {
   const attributes=product._attributes||{};
   return (ignoreStore || state.store==='all' || product.store===state.store) &&
     (ignoreCategory || !state.category || product.category===state.category) &&
-    (!state.priced || !!product.price) &&
+    !!product.price &&
     (ignoreView || !state.deals || isDeal(product)) &&
     (ignoreView || !state.pp || product._ppRank!=null) &&
-    (ignoreKind || !state.kind || attributes.kind===state.kind) &&
     (ignoreAttributes || !state.noSugar || attributes.sugar_free) &&
     (ignoreAttributes || !state.lactoseFree || attributes.lactose_free) &&
     (ignoreAttributes || !state.sugarMax || attributes.sugar_g!=null && attributes.sugar_g<=Number(state.sugarMax)) &&
@@ -97,22 +126,11 @@ function matches(product, ignoreCategory=false, ignoreStore=false, ignoreKind=fa
 }
 
 function renderCategories() {
-  const eligible = state.products.filter(product => matches(product,true,false,true,false,true));
+  const eligible = state.products.filter(product => matches(product,{ignoreCategory:true,ignoreAttributes:true}));
   const counts = new Map();
   for (const product of eligible) counts.set(product.category,(counts.get(product.category)||0)+1);
-  const categories = [{id:'',name:state.deals?'Все скидки':state.pp?'Все ПП-товары':'Все товары',count:eligible.length},...meta.categories.map(category=>({...category,count:counts.get(category.id)||0}))]
-    .filter(category=>!category.id || category.count || category.id===state.category);
-  if (state.kind) {
-    const selected=categories.findIndex(category=>category.id===state.category);
-    if (selected>1) categories.splice(1,0,categories.splice(selected,1)[0]);
-  }
-  $('categories').innerHTML = categories.map(category=>{
-    const children=Object.entries(kinds).filter(([,kind])=>kind.category===category.id).map(([id,kind])=>{
-      const count=eligible.filter(product=>product.category===category.id&&product._attributes?.kind===id).length;
-      return count||state.kind===id?`<button class="subcategory ${state.kind===id?'active':''}" type="button" data-kind="${id}" aria-pressed="${state.kind===id}"><span>${kind.name}</span><small>${number(count)}</small></button>`:'';
-    }).join('');
-    return `<button class="category ${state.category===category.id&&!state.kind?'active':''}" type="button" data-category="${category.id}" aria-pressed="${state.category===category.id&&!state.kind}"><span class="category-icon" aria-hidden="true">${category.id?categoryIcons[category.id]||'◇':'▦'}</span><span>${escapeHtml(category.name)}</span><small>${number(category.count)}</small></button>${children}`;
-  }).join('');
+  const categories = [{id:'',name:state.deals?'Все скидки':state.pp?'Все ПП-товары':'Все товары',count:eligible.length},...meta.categories.map(category=>({...category,count:counts.get(category.id)||0}))];
+  $('categories').innerHTML = categories.map(category=>`<button class="category ${state.category===category.id?'active':''} ${category.count?'':'no-results'}" type="button" data-category="${category.id}" aria-pressed="${state.category===category.id}"><span>${escapeHtml(category.name)}</span><small>${number(category.count)}</small></button>`).join('');
 }
 
 function syncUrl() {
@@ -122,12 +140,10 @@ function syncUrl() {
   if (state.query) params.set('q',state.query);
   if (state.deals) params.set('offers','1');
   if (state.pp) params.set('pp','1');
-  if (state.kind) params.set('kind',state.kind);
   if (state.noSugar) params.set('noSugar','1');
   if (state.lactoseFree) params.set('lactoseFree','1');
   if (state.sugarMax) params.set('sugarMax',state.sugarMax);
   if (state.fatMax) params.set('fatMax',state.fatMax);
-  if (!state.priced) params.set('allPrices','1');
   if (state.sort!=='default') params.set('sort',state.sort);
   history.replaceState(null,'',location.pathname+(params.size?'?'+params:''));
 }
@@ -147,19 +163,28 @@ function showMore() {
   updatePagination();
 }
 function renderCharacteristics() {
-  $('characterFilters').hidden=!state.kind;
-  $('noSugarWrap').hidden=state.kind!=='soda';
-  $('lactoseFreeWrap').hidden=state.kind!=='milk';
-  $('sugarMaxWrap').hidden=state.kind==='milk';
-  $('fatMaxWrap').hidden=state.kind==='soda';
-  $('sugarUnit').textContent=state.kind==='soda'?'Сахар / 100 мл':'Сахар / 100 г';
-  $('fatUnit').textContent=state.kind==='milk'?'Жиры / 100 мл':'Жиры / 100 г';
+  const eligible=state.products.filter(product=>matches(product,{ignoreAttributes:true}));
+  const sugar=eligible.some(product=>product._attributes?.sugar_g!=null)||!!state.sugarMax;
+  const fat=eligible.some(product=>product._attributes?.fat_g!=null)||!!state.fatMax;
+  const noSugar=eligible.some(product=>product._attributes?.sugar_free)||state.noSugar;
+  const lactose=eligible.some(product=>product._attributes?.lactose_free)||state.lactoseFree;
+  $('characterFilters').hidden=!state.category||!sugar&&!fat&&!noSugar&&!lactose;
+  $('noSugarWrap').hidden=!noSugar;
+  $('lactoseFreeWrap').hidden=!lactose;
+  $('sugarMaxWrap').hidden=!sugar;
+  $('fatMaxWrap').hidden=!fat;
+  const basis=state.category==='drinks'?'100 мл':state.category==='dairy'?'100 г/мл':'100 г';
+  $('sugarUnit').textContent=`Сахар / ${basis}`;
+  $('fatUnit').textContent=`Жиры / ${basis}`;
   $('noSugar').checked=state.noSugar;
   $('lactoseFree').checked=state.lactoseFree;
   $('sugarMax').value=state.sugarMax;
   $('fatMax').value=state.fatMax;
   $('characterNote').hidden=!state.sugarMax&&!state.fatMax;
-  $('openFilters').querySelector('span').textContent=state.kind?`Категории · ${kinds[state.kind].name}`:'Категории и фильтры';
+  $('openFilters').querySelector('span').textContent='Фильтры';
+  const chosen=[state.noSugar,state.lactoseFree,!!state.sugarMax,!!state.fatMax].filter(Boolean).length;
+  $('characterSelection').textContent=chosen?`Выбрано: ${chosen}`:'Сахар, жиры и состав';
+  $('resetSidebar').hidden=state.store==='all'&&!state.category&&!state.query&&!chosen&&state.sort==='default';
 }
 function render() {
   if (!meta) return;
@@ -183,19 +208,17 @@ function render() {
   }
   $('products').innerHTML = state.filtered.slice(0,state.limit).map(card).join('');
   const storeCounts=new Map();
-  for(const product of state.products)if(matches(product,false,true))storeCounts.set(product.store,(storeCounts.get(product.store)||0)+1);
+  for(const product of state.products)if(matches(product,{ignoreStore:true}))storeCounts.set(product.store,(storeCounts.get(product.store)||0)+1);
   $('allStoreCount').textContent=productCount([...storeCounts.values()].reduce((sum,count)=>sum+count,0));
   for(const store of ['Coop','Conad','Lidl','Eurospin'])$(''+store.toLowerCase()+'Count').textContent=productCount(storeCounts.get(store)||0);
-  $('offerTotalCount').textContent=number(state.products.filter(product=>isDeal(product)&&matches(product,false,false,false,true)).length);
-  $('ppTotalCount').textContent=number(state.products.filter(product=>product._ppRank!=null&&matches(product,false,false,false,true)).length);
+  $('offerTotalCount').textContent=number(state.products.filter(product=>isDeal(product)&&matches(product,{ignoreView:true})).length);
+  $('ppTotalCount').textContent=number(state.products.filter(product=>product._ppRank!=null&&matches(product,{ignoreView:true})).length);
   $('emptyState').hidden = !!state.filtered.length;
   $('emptyState').querySelector('h3').textContent = state.deals ? 'Скидок не найдено' : state.pp ? 'Подходящих товаров не найдено' : 'Пока ничего не нашлось';
   $('emptyState').querySelector('p').textContent = state.deals ? 'В этом разделе или магазине нет опубликованных предложений. Попробуйте другой фильтр.' : 'Попробуйте другое название или откройте все разделы.';
   const categoryName=meta.categories.find(category=>category.id===state.category)?.name;
-  const title=(state.kind&&kinds[state.kind].name)||categoryName||'Все товары';
+  const title=categoryName||'Все товары';
   $('categoryTitle').textContent = state.deals ? title==='Все товары'?'Скидки':`Скидки · ${title}` : state.pp ? title==='Все товары'?'ПП':`ПП · ${title}` : title;
-  $('scopeLabel').textContent = state.store==='all'?'ВСЕ МАГАЗИНЫ':state.store.toUpperCase();
-  $('scopeNote').textContent = state.deals ? 'Акции и цены по карте из открытых каталогов.' : scope[state.store];
   $('resultCount').textContent = productCount(state.filtered.length);
   $('sortSelect').options[0].textContent=state.pp?'По подборке':'По разделам';
   updatePagination();
@@ -217,7 +240,7 @@ function toggleFavorite(key) {
   try { localStorage.setItem('spesa-viterbo-favorites-v1',JSON.stringify([...state.favorites])); }
   catch { showToast('Браузер не сохранил избранное'); }
   updateFavoriteCount();
-  document.querySelectorAll('[data-favorite]').forEach(button=>{if(button.dataset.favorite!==key)return;button.classList.toggle('saved',added);button.setAttribute('aria-pressed',added);button.setAttribute('aria-label',`${added?'Удалить из избранного':'Добавить в избранное'}: ${map.get(key).name_it}`);button.textContent=added?'♥':'♡';});
+  document.querySelectorAll('.favorite-button[data-favorite]').forEach(button=>{if(button.dataset.favorite!==key)return;button.classList.toggle('saved',added);button.setAttribute('aria-pressed',added);button.setAttribute('aria-label',`${added?'Удалить из избранного':'Добавить в избранное'}: ${map.get(key).name_it}`);button.innerHTML=heart(added);});
   if (!$('favoritesDrawer').hidden) renderFavorites();
   showToast(added?'Добавлено в избранное':'Удалено из избранного');
 }
@@ -236,6 +259,38 @@ function renderInfo(info) {
   }
   $('infoContent').innerHTML = paragraphs.length ? paragraphs.join('')+'<p class="info-footnote">Данные магазина могут измениться. Проверяйте состав и аллергены на упаковке.</p>' : '<p class="info-empty">Магазин не опубликовал состав или пищевую ценность этого товара.</p>';
 }
+async function savedProductInfo(key) {
+  if (infoCache.has(key)) return infoCache.get(key);
+  const shard=(Number(key.match(/\d+$/)[0])%64).toString(16).padStart(2,'0');
+  if (!infoShards.has(shard)) {
+    infoShards.set(shard,fetch(`data/product-info/${shard}.json?v=${infoIndex.version}`).then(response=>{
+      if (!response.ok) throw new Error('Saved product info unavailable');
+      return response.json();
+    }).catch(error=>{infoShards.delete(shard);throw error;}));
+  }
+  const entry=(await infoShards.get(shard))[key];
+  if (!entry?.info) throw new Error('Saved product info missing');
+  infoCache.set(key,entry.info);
+  return entry.info;
+}
+async function loadCardSpecs(element) {
+  if (!element.classList.contains('has-specs')||element.dataset.specsLoaded) return;
+  element.dataset.specsLoaded='loading';
+  try {
+    const info=await savedProductInfo(element.dataset.key);
+    const blocks=[];
+    if(info.nutrition?.rows?.length) {
+      blocks.push(`<section><h5>Пищевая ценность</h5><p class="spec-basis">${escapeHtml(info.nutrition.headers[1]||'')}</p><dl>${info.nutrition.rows.filter(row=>row[1]).map(row=>`<div><dt>${escapeHtml(row[0])}</dt><dd>${escapeHtml(row[1])}</dd></div>`).join('')}</dl></section>`);
+    }
+    if(info.ingredients)blocks.push(`<section><h5>Состав</h5><p lang="it">${escapeHtml(info.ingredients).replace(/\n/g,'<br>')}</p></section>`);
+    if(info.allergens)blocks.push(`<section><h5>Аллергены</h5><p lang="it">${escapeHtml(info.allergens)}</p></section>`);
+    element.querySelector('[data-spec-content]').innerHTML=blocks.join('');
+    element.dataset.specsLoaded='ready';
+  } catch {
+    element.querySelector('[data-spec-content]').innerHTML='<p>Не удалось открыть сохранённые данные.</p>';
+    delete element.dataset.specsLoaded;
+  }
+}
 async function openInfo(key) {
   const product = map.get(key);
   if (!product) return;
@@ -247,14 +302,7 @@ async function openInfo(key) {
   $('infoDialog').showModal();
   $('closeInfo').focus();
   try {
-    let info = infoCache.get(key);
-    if (!info) {
-      const params = new URLSearchParams({store:product.store,url:product.url||'',key});
-      const response = await fetch('api/info?'+params);
-      if (!response.ok) throw new Error('Product info unavailable');
-      info = await response.json();
-      infoCache.set(key,info);
-    }
+    const info = await savedProductInfo(key);
     if (info.image && product.store === 'Coop' && !product.direct_image) {
       product.image = info.image;
       product.direct_image = true;
@@ -267,27 +315,35 @@ async function openInfo(key) {
     }
     if ($('infoDialog').open && $('infoDialog').dataset.key === key) renderInfo(info);
   } catch {
-    if ($('infoDialog').open && $('infoDialog').dataset.key === key) $('infoContent').innerHTML = '<p class="info-empty">Сейчас не удалось загрузить данные товара. Попробуйте ещё раз позже.</p>';
+    if ($('infoDialog').open && $('infoDialog').dataset.key === key) $('infoContent').innerHTML = '<p class="info-empty">Не удалось открыть сохранённые данные. Попробуйте ещё раз.</p>';
   }
 }
-function openFavorites() {lastFocus=document.activeElement;renderFavorites();$('drawerOverlay').hidden=false;$('favoritesDrawer').hidden=false;document.body.style.overflow='hidden';$('closeFavorites').focus();}
-function closeFavorites() {$('drawerOverlay').hidden=true;$('favoritesDrawer').hidden=true;document.body.style.overflow='';lastFocus?.focus();}
+function openDrawer(id) {lastFocus=document.activeElement;$('favoritesDrawer').hidden=true;$('cartDrawer').hidden=true;if(id==='cartDrawer')renderCart();else renderFavorites();$('drawerOverlay').hidden=false;$(id).hidden=false;document.body.style.overflow='hidden';$(id==='cartDrawer'?'closeCart':'closeFavorites').focus();}
+function closeDrawer() {$('drawerOverlay').hidden=true;$('favoritesDrawer').hidden=true;$('cartDrawer').hidden=true;document.body.style.overflow='';if(lastFocus?.isConnected)lastFocus.focus();else document.querySelector('.cart-trigger').focus();}
 
 document.addEventListener('click',event=>{
+  const add=event.target.closest('[data-add-cart]');if(add){setCartQuantity(add.dataset.addCart,(state.cart.get(add.dataset.addCart)||0)+1);showToast('Добавлено в кошик');return;}
+  const change=event.target.closest('[data-cart-change]');if(change){setCartQuantity(change.dataset.cartChange,(state.cart.get(change.dataset.cartChange)||0)+Number(change.dataset.delta));return;}
+  const remove=event.target.closest('[data-cart-remove]');if(remove){setCartQuantity(remove.dataset.cartRemove,0);return;}
+  const fullInfo=event.target.closest('[data-full-info]');if(fullInfo){openInfo(fullInfo.dataset.fullInfo);return;}
   const info=event.target.closest('[data-info]');if(info){openInfo(info.dataset.info);return;}
   const favorite=event.target.closest('[data-favorite]');if(favorite){toggleFavorite(favorite.dataset.favorite);return;}
-  const open=event.target.closest('[data-open]');if(open){if(open.dataset.open==='favorites')openFavorites();else $('aboutDialog').showModal();return;}
+  const open=event.target.closest('[data-open]');if(open){if(open.dataset.open==='favorites'||open.dataset.open==='cart')openDrawer(open.dataset.open==='cart'?'cartDrawer':'favoritesDrawer');else $('aboutDialog').showModal();return;}
   const view=event.target.closest('[data-view]');if(view){state.deals=view.dataset.view==='offers';state.pp=view.dataset.view==='pp';render();return;}
   const store=event.target.closest('[data-store]');if(store){state.store=state.store===store.dataset.store?'all':store.dataset.store;render();return;}
-  const category=event.target.closest('[data-category]');if(category){Object.assign(state,{category:category.dataset.category,kind:'',noSugar:false,lactoseFree:false,sugarMax:'',fatMax:''});render();closeFilters();return;}
-  const kind=event.target.closest('[data-kind]');if(kind){const selected=state.kind===kind.dataset.kind?'':kind.dataset.kind;Object.assign(state,{kind:selected,category:kinds[kind.dataset.kind].category,noSugar:false,lactoseFree:false,sugarMax:'',fatMax:''});render();$('categoryRail').scrollTop=0;if(selected)closeFilters();return;}
+  const category=event.target.closest('[data-category]');if(category){Object.assign(state,{category:category.dataset.category,noSugar:false,lactoseFree:false,sugarMax:'',fatMax:''});render();$('categoryRail').scrollTop=0;closeFilters();return;}
 });
-function closeFilters() {const wasOpen=document.body.classList.contains('filters-open');document.body.classList.remove('filters-open');$('filterOverlay').hidden=true;$('openFilters').setAttribute('aria-expanded','false');if(wasOpen)$('openFilters').focus();}
-$('openFilters').addEventListener('click',()=>{document.body.classList.add('filters-open');$('filterOverlay').hidden=false;$('openFilters').setAttribute('aria-expanded','true');$('closeFilters').focus();});
+const cardPreviewMedia=matchMedia('(hover:hover) and (min-width:961px)');
+for(const type of ['pointerover','focusin'])document.addEventListener(type,event=>{const element=event.target.closest('.product-card.has-specs');if(element&&cardPreviewMedia.matches)loadCardSpecs(element);});
+const mobileFilters=matchMedia('(max-width:960px)');
+function syncFilterPanel() {$('categoryRail').inert=mobileFilters.matches&&!document.body.classList.contains('filters-open');}
+function closeFilters() {const wasOpen=document.body.classList.contains('filters-open');document.body.classList.remove('filters-open');$('filterOverlay').hidden=true;$('openFilters').setAttribute('aria-expanded','false');$('categoryRail').removeAttribute('role');$('categoryRail').removeAttribute('aria-modal');syncFilterPanel();if(wasOpen&&mobileFilters.matches)$('openFilters').focus();}
+$('openFilters').addEventListener('click',()=>{document.body.classList.add('filters-open');$('filterOverlay').hidden=false;$('openFilters').setAttribute('aria-expanded','true');$('categoryRail').setAttribute('role','dialog');$('categoryRail').setAttribute('aria-modal','true');syncFilterPanel();$('closeFilters').focus();});
+mobileFilters.addEventListener('change',()=>{if(!mobileFilters.matches)closeFilters();syncFilterPanel();});
+syncFilterPanel();
 $('closeFilters').addEventListener('click',closeFilters);
 $('filterOverlay').addEventListener('click',closeFilters);
 $('searchInput').addEventListener('input',event=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>{state.query=event.target.value.trim();render();},160);});
-$('onlyPriced').addEventListener('change',event=>{state.priced=event.target.checked;render();});
 $('noSugar').addEventListener('change',event=>{state.noSugar=event.target.checked;render();});
 $('lactoseFree').addEventListener('change',event=>{state.lactoseFree=event.target.checked;render();});
 $('sugarMax').addEventListener('change',event=>{state.sugarMax=event.target.value;render();});
@@ -295,38 +351,52 @@ $('fatMax').addEventListener('change',event=>{state.fatMax=event.target.value;re
 $('clearCharacters').addEventListener('click',()=>{Object.assign(state,{noSugar:false,lactoseFree:false,sugarMax:'',fatMax:''});render();});
 $('sortSelect').addEventListener('change',event=>{state.sort=event.target.value;render();});
 $('loadMore').addEventListener('click',showMore);
-$('resetFilters').addEventListener('click',()=>{Object.assign(state,{store:'all',category:'',query:'',priced:true,deals:false,pp:false,kind:'',noSugar:false,lactoseFree:false,sugarMax:'',fatMax:'',sort:'default'});$('searchInput').value='';$('onlyPriced').checked=true;$('sortSelect').value='default';render();});
-$('closeFavorites').addEventListener('click',closeFavorites);
-$('drawerOverlay').addEventListener('click',closeFavorites);
+function resetCatalogFilters() {Object.assign(state,{store:'all',category:'',query:'',noSugar:false,lactoseFree:false,sugarMax:'',fatMax:'',sort:'default'});$('searchInput').value='';$('sortSelect').value='default';render();}
+$('resetFilters').addEventListener('click',resetCatalogFilters);
+$('resetSidebar').addEventListener('click',resetCatalogFilters);
+$('closeFavorites').addEventListener('click',closeDrawer);
+$('closeCart').addEventListener('click',closeDrawer);
+$('drawerOverlay').addEventListener('click',closeDrawer);
 $('closeAbout').addEventListener('click',()=>$('aboutDialog').close());
 $('aboutDialog').addEventListener('click',event=>{if(event.target===$('aboutDialog'))$('aboutDialog').close();});
 $('closeInfo').addEventListener('click',()=>$('infoDialog').close());
 $('infoDialog').addEventListener('click',event=>{if(event.target===$('infoDialog'))$('infoDialog').close();});
 $('infoDialog').addEventListener('close',()=>infoFocus?.focus());
-document.addEventListener('keydown',event=>{if(event.key==='Escape'){if(!$('favoritesDrawer').hidden)closeFavorites();if(document.body.classList.contains('filters-open'))closeFilters();}});
+document.addEventListener('keydown',event=>{
+  if(event.key==='Escape'){if(!$('favoritesDrawer').hidden||!$('cartDrawer').hidden)closeDrawer();if(document.body.classList.contains('filters-open'))closeFilters();}
+  if(event.key==='Tab') {
+    const panel=document.body.classList.contains('filters-open')?$('categoryRail'):!$('favoritesDrawer').hidden?$('favoritesDrawer'):!$('cartDrawer').hidden?$('cartDrawer'):null;
+    if(!panel)return;
+    const controls=[...panel.querySelectorAll('button,input,select,summary,a[href]')].filter(control=>control.getClientRects().length&&!control.closest('[hidden]'));
+    if(event.shiftKey&&document.activeElement===controls[0]){event.preventDefault();controls.at(-1)?.focus();}
+    else if(!event.shiftKey&&document.activeElement===controls.at(-1)){event.preventDefault();controls[0]?.focus();}
+  }
+});
 
 (async()=>{
   try {
-    const responses=await Promise.all(['meta.json','products.json','lidl-products.json','eurospin-products.json','coop-images.json','product-attributes.json'].map(path=>fetch(path)));
+    const responses=await Promise.all(['meta.json','products.json','lidl-products.json','eurospin-products.json','coop-images.json','product-attributes.json','product-info-index.json'].map(path=>fetch(path)));
     if(responses.some(response=>!response.ok))throw new Error('Catalog data unavailable');
-    const [metadata,products,lidlProducts,eurospinProducts,coopImages,attributes]=await Promise.all(responses.map(response=>response.json()));
-    meta=metadata;state.products=[...products,...lidlProducts,...eurospinProducts];
-    state.products.forEach(product=>{if(product.store==='Coop'&&coopImages[product.key]){product.image=coopImages[product.key];product.direct_image=true;}product._attributes=attributes[product.key];cleanCatalogName(product);product._ppRank=ppRank(product);product._search=normalize([product.name_it,product.name_ru,product.store].join(' '));map.set(product.key,product);});
+    const [metadata,products,lidlProducts,eurospinProducts,coopImages,attributes,index]=await Promise.all(responses.map(response=>response.json()));
+    meta=metadata;infoIndex=index;state.products=[...products,...lidlProducts,...eurospinProducts];
+    const infoKeys=new Set(index.keys);
+    state.products.forEach(product=>{if(product.store==='Coop'&&coopImages[product.key]){product.image=coopImages[product.key];product.direct_image=true;}product._attributes=attributes[product.key];product._hasInfo=infoKeys.has(product.key);cleanCatalogName(product);product._ppRank=ppRank(product);product._search=normalize([product.name_it,product.name_ru,product.store].join(' '));map.set(product.key,product);});
     try{const saved=JSON.parse(localStorage.getItem('spesa-viterbo-favorites-v1')||'[]');state.favorites=new Set(Array.isArray(saved)?saved.filter(key=>map.has(key)):[]);}catch{}
+    try{const saved=JSON.parse(localStorage.getItem('shopping-by-tuzin-cart-v1')||'[]');if(Array.isArray(saved))state.cart=new Map(saved.filter(entry=>Array.isArray(entry)&&map.has(entry[0])&&Number.isInteger(entry[1])&&entry[1]>0&&entry[1]<=999));}catch{}
     const params=new URLSearchParams(location.search);
     if(['Coop','Conad','Lidl','Eurospin'].includes(params.get('store')))state.store=params.get('store');
     if(meta.categories.some(category=>category.id===params.get('category')))state.category=params.get('category');
     if(['price-asc','price-desc','name'].includes(params.get('sort')))state.sort=params.get('sort');
     state.deals=params.get('offers')==='1';state.pp=!state.deals&&params.get('pp')==='1';
-    if(kinds[params.get('kind')]){state.kind=params.get('kind');state.category=kinds[state.kind].category;}
-    if(state.kind==='soda')state.noSugar=params.get('noSugar')==='1';
-    if(state.kind==='milk')state.lactoseFree=params.get('lactoseFree')==='1';
-    if(['0.5','2','5','10'].includes(params.get('sugarMax'))&&['soda','yogurt'].includes(state.kind))state.sugarMax=params.get('sugarMax');
-    if(['0.5','1.5','2','5'].includes(params.get('fatMax'))&&['yogurt','milk'].includes(state.kind))state.fatMax=params.get('fatMax');
-    state.query=params.get('q')||'';state.priced=params.get('allPrices')!=='1';
-    $('searchInput').value=state.query;$('onlyPriced').checked=state.priced;$('sortSelect').value=state.sort;
-    $('totalCount').textContent=productCount(state.products.length);
-    updateFavoriteCount();render();
+    if(!state.category)state.category=({soda:'drinks',yogurt:'dairy',milk:'dairy'})[params.get('kind')]||'';
+    if(state.category) {
+      state.noSugar=params.get('noSugar')==='1';state.lactoseFree=params.get('lactoseFree')==='1';
+      if(['0.5','2','5','10'].includes(params.get('sugarMax')))state.sugarMax=params.get('sugarMax');
+      if(['0.5','1.5','2','5'].includes(params.get('fatMax')))state.fatMax=params.get('fatMax');
+    }
+    state.query=params.get('q')||'';
+    $('searchInput').value=state.query;$('sortSelect').value=state.sort;
+    updateFavoriteCount();updateCartCount();render();
   } catch(error) {
     console.error(error);
     $('products').innerHTML='<p class="loading">Не удалось загрузить каталог. Обновите страницу.</p>';

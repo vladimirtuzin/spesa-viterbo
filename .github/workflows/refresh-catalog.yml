@@ -11,7 +11,7 @@ permissions:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -19,10 +19,10 @@ jobs:
           python-version: '3.12'
       - run: python -m pip install -r requirements.txt
       - run: python sync_catalog.py
-      - run: python refresh_attributes.py --limit 100
+      - run: python refresh_attributes.py --limit 750 --max-seconds 600
       - name: Commit updated catalog
         run: |
-          git add meta.json products.json coop-images.json lidl-products.json eurospin-products.json product-attributes.json sync-status.json assets/atlases
+          git add meta.json products.json coop-images.json lidl-products.json eurospin-products.json product-attributes.json product-info-index.json data/product-info sync-status.json assets/atlases
           if git diff --cached --quiet; then exit 0; fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

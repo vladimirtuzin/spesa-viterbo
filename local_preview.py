@@ -1,19 +1,11 @@
-"""Static catalog and its product-info endpoint for local preview."""
+"""Serve the catalog and saved product labels locally."""
 
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse
-
-from api.info import serve_info
-
-
-class PreviewHandler(SimpleHTTPRequestHandler):
-    def do_GET(self):
-        if urlparse(self.path).path == "/api/info":
-            serve_info(self)
-        else:
-            super().do_GET()
+from functools import partial
+from pathlib import Path
 
 
 if __name__ == "__main__":
-    print("Spesa Viterbo: http://127.0.0.1:5173/", flush=True)
-    ThreadingHTTPServer(("127.0.0.1", 5173), PreviewHandler).serve_forever()
+    print("SHOPPING BY TUZIN: http://127.0.0.1:5173/", flush=True)
+    handler = partial(SimpleHTTPRequestHandler, directory=str(Path(__file__).resolve().parent))
+    ThreadingHTTPServer(("127.0.0.1", 5173), handler).serve_forever()

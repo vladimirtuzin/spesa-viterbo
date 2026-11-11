@@ -1,6 +1,6 @@
 """Smoke-check the three public product information sources."""
 
-from api.info import product_info
+from product_sources import product_info
 from refresh_attributes import kind, nutrition_values
 
 

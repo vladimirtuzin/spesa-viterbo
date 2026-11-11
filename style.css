@@ -165,7 +165,9 @@ summary::-webkit-details-marker{display:none}
 .member-offer>small{width:100%;color:#61744f;font-size:11px;line-height:14px}
 .offer-note{color:#926139;font-size:11px;line-height:16px}
 
-.card-details{position:absolute;inset:0;border-top:1px solid #e7eddf;border-bottom:1px solid #e7eddf;background:#f8fbf4}
+.card-details{position:absolute;inset:0;z-index:2;padding-top:54px;background:#f8fbf4}
+.spec-open .card-heading{position:relative;z-index:3;background:#f8fbf4}
+.spec-open>.card-visual,.spec-open>.product-content,.spec-open>.purchase-row,.spec-open>.price-meta{visibility:hidden}
 .spec-scroll{height:100%;padding:11px 12px;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#b3c6a2 transparent;color:#677b5c;font-size:12px;line-height:1.55;overflow-wrap:anywhere}
 .spec-scroll:focus-visible{outline-offset:-3px}
 .spec-scroll::-webkit-scrollbar{width:4px;height:4px}
@@ -300,7 +302,8 @@ body.filters-open .category-rail{visibility:visible;transform:translateX(0)}
 .card-visual{height:180px}
 }
 
-@media(max-width:640px){.header-inner{display:flex;flex-wrap:wrap;gap:13px;min-height:0;padding:15px 16px 13px}
+@media(max-width:640px){.card-details{padding-top:46px}
+.header-inner{display:flex;flex-wrap:wrap;gap:13px;min-height:0;padding:15px 16px 13px}
 .brand{gap:8px;font-size:18px;letter-spacing:-.7px}
 .brand small{margin-top:5px;font-size:8px;letter-spacing:3px}
 .brand-mark{width:33px;height:37px;border-radius:10px}

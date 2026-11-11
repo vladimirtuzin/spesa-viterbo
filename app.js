@@ -33,10 +33,11 @@ function card(product){
   const note=loyalty!=null?`<span class="member-offer"><strong>${euro(loyalty)}</strong> по карте ${escapeHtml(product.store)}${product.note?.includes(' · ')?`<small>${escapeHtml(product.note.split(' · ').slice(1).join(' · '))}</small>`:''}</span>`:isDeal(product)&&product.note?`<span class="offer-note">${escapeHtml(product.note)}</span>`:'';
   return `<article class="product-card" data-key="${key}" tabindex="-1" aria-label="${name}">
     <div class="card-heading"><span class="card-store store-${product.store.toLowerCase()}"><img src="assets/store-icons/${storeIcons[product.store]}" alt=""><span>${escapeHtml(product.store)}</span></span><button class="info-button" type="button" data-info="${key}" aria-label="Состав и пищевая ценность: ${name}" aria-expanded="false" aria-controls="spec-${key}" title="Состав и пищевая ценность">${infoIcon}</button></div>
-    <div class="card-visual"><div class="product-media">${imageMarkup(product)}</div><section class="card-details" id="spec-${key}" aria-label="Состав и пищевая ценность" hidden><div class="spec-scroll" tabindex="0" data-spec-content></div></section></div>
+    <div class="card-visual"><div class="product-media">${imageMarkup(product)}</div></div>
     <div class="product-content"><h3 class="product-name" lang="ru" title="${name}">${name}</h3><p class="pack">${escapeHtml(measure(product.pack))}</p></div>
     <div class="purchase-row"><span class="price ${hasPrice(product)?loyalty==null&&isDeal(product)?'sale-price':'':'unpriced'}">${hasPrice(product)?euro(product.price):'Нет цены'}</span><div class="cart-card-control" data-cart-control="${key}">${cartControl(product)}</div></div>
     <div class="price-meta">${product.unit_price?`<span class="unit-price">${escapeHtml(measure(product.unit_price))}</span>`:''}${note}</div>
+    <section class="card-details" id="spec-${key}" aria-label="Состав и пищевая ценность" hidden><div class="spec-scroll" tabindex="0" data-spec-content></div></section>
   </article>`;
 }
 function cartControl(product){
@@ -192,7 +193,12 @@ async function loadCardSpecs(element){
     content.innerHTML=blocks.length?blocks.join(''):`<p class="spec-status">${info.status==='unsupported'?'В каталоге Lidl нет состава и таблицы питания.':'Магазин не вернул состав и пищевую ценность этого товара.'}</p>`;element.dataset.specsLoaded='ready';
   }catch{content.innerHTML='<p class="spec-status">Не удалось загрузить состав. <button type="button" class="text-button" data-retry-info>Повторить</button></p>';delete element.dataset.specsLoaded;}
 }
-function showSpecs(element,open){element.classList.toggle('spec-open',open);element.querySelector('.card-details').hidden=!open;element.querySelector('[data-info]').setAttribute('aria-expanded',open);element.querySelector('.product-media').setAttribute('aria-hidden',open);if(open)loadCardSpecs(element);}
+function showSpecs(element,open){
+  element.classList.toggle('spec-open',open);element.querySelector('.card-details').hidden=!open;
+  const button=element.querySelector('[data-info]');button.setAttribute('aria-expanded',open);button.title=open?'Закрыть характеристики':'Состав и пищевая ценность';
+  for(const part of element.querySelectorAll('.card-visual,.product-content,.purchase-row,.price-meta')){part.inert=open;part.setAttribute('aria-hidden',open);}
+  if(open)loadCardSpecs(element);
+}
 function openDrawer(){lastFocus=document.activeElement;lastFocusKey=lastFocus?.closest('[data-cart-control]')?.dataset.cartControl;closeFilters(false);renderCart();$('drawerOverlay').hidden=false;$('cartDrawer').hidden=false;document.body.style.overflow='hidden';syncFilterPanel();$('closeCart').focus();}
 function closeDrawer(){$('drawerOverlay').hidden=true;$('cartDrawer').hidden=true;document.body.style.overflow='';syncFilterPanel();if(lastFocus?.isConnected)lastFocus.focus();else ([...document.querySelectorAll('[data-cart-control]')].find(e=>e.dataset.cartControl===lastFocusKey)?.querySelector('button')||document.querySelector('.cart-trigger')).focus({preventScroll:true});}
 function selectCategory(category,subcategory=''){Object.assign(state,{category,subcategory,noSugar:false,lactoseFree:false,sugarMax:'',fatMax:''});render();}

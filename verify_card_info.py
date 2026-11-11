@@ -56,6 +56,11 @@ with sync_playwright() as p:
     assert "пока не опубликованы" not in content.inner_text()
     assert not content.locator("dl,.original-name").count()
     assert card.bounding_box() == before
+    overlay=card.locator('.card-details').bounding_box()
+    assert abs(overlay['width']-before['width'])<=2 and abs(overlay['height']-before['height'])<=2
+    assert content.bounding_box()['height']>before['height']*.7
+    assert card.locator('.purchase-row').evaluate('e=>e.inert')
+    assert card.locator('[data-info]').is_visible()
     position = page.evaluate("scrollY")
     content.evaluate("e => e.scrollTop = e.scrollHeight")
     assert content.evaluate("e => e.scrollTop > 0") and page.evaluate("scrollY") == position
@@ -113,9 +118,12 @@ with sync_playwright() as p:
     assert outer["x"] <= panel["x"] and outer["y"] <= panel["y"]
     assert panel["x"] + panel["width"] <= outer["x"] + outer["width"]
     assert panel["y"] + panel["height"] <= outer["y"] + outer["height"]
+    assert abs(panel["height"]-outer["height"])<=2
+    assert card.locator(".purchase-row").evaluate("e=>e.inert")
     assert mobile.locator(".nutrition-table").evaluate("e => e.scrollWidth <= e.clientWidth")
     card.locator("[data-info]").click()
     assert card.locator(".card-details").is_hidden()
+    assert not card.locator(".purchase-row").evaluate("e=>e.inert")
     assert not errors, errors
     browser.close()
 

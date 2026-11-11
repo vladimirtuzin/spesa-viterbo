@@ -3,71 +3,76 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#ffffff">
-  <meta name="description" content="SHOPPING BY TUZIN — удобный каталог товаров Coop, Conad, Lidl и Eurospin с ценами, скидками, составом и корзиной.">
-  <title>SHOPPING BY TUZIN — каталог продуктов</title>
-  <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="style.css?v=20261111-info-v5">
-  <script src="app.js?v=20261111-info-v5" defer></script>
+  <meta name="theme-color" content="#f7f8f4">
+  <meta name="description" content="SHOPPING BY TUZIN — продукты Coop, Conad, Lidl и Eurospin: цены, скидки, состав и ваш список покупок.">
+  <title>SHOPPING BY TUZIN — продукты и цены</title>
+  <link rel="icon" href="favicon.svg?v=20261111-design-v7" type="image/svg+xml">
+  <link rel="preload" href="assets/fonts/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="style.css?v=20261111-design-v7">
+  <script src="app.js?v=20261111-design-v7" defer></script>
 </head>
 <body>
+  <a class="skip-link" href="#products">К товарам</a>
   <header class="site-header">
     <div class="header-inner">
-      <a class="brand" href="#top" aria-label="SHOPPING BY TUZIN — начало"><span>SHOPPING<small>BY TUZIN</small></span></a>
-      <label class="search-box"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="m15 15 6 6"/></svg><input id="searchInput" type="search" placeholder="Найти товар или бренд" autocomplete="off" aria-label="Поиск товаров"></label>
-      <div class="header-actions"><button class="cart-trigger" type="button" data-open="cart" aria-label="Открыть корзину"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 3h3l2.1 12h12.4l2-9H6"/><circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/></svg><span>Корзина</span><b id="cartCount">0</b></button></div>
+      <a class="brand" href="#top" aria-label="SHOPPING BY TUZIN — начало">
+        <span class="brand-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l1 13H4L5 8Z"/><path d="M8 9V6a4 4 0 0 1 8 0v3"/><path d="m9 14 2 2 4-4"/></svg></span>
+        <span>SHOPPING<small>BY TUZIN</small></span>
+      </a>
+      <label class="search-box"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><input id="searchInput" type="search" placeholder="Найти продукт или бренд" autocomplete="off" aria-label="Поиск товаров"><button id="clearSearch" type="button" aria-label="Очистить поиск" hidden>×</button></label>
+      <button class="cart-trigger" type="button" data-open="cart" aria-label="Открыть корзину"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2 11h12l2-8H6"/><circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/></svg><span>Корзина</span><b id="cartCount" aria-live="polite">0</b></button>
     </div>
   </header>
-
   <main id="top" class="page-shell">
-    <section id="catalog" class="catalog-section" aria-labelledby="categoryTitle">
-      <div class="catalog-heading">
-      <nav class="quick-views" aria-label="Режим каталога"><button class="quick-view active" type="button" data-view="all" aria-pressed="true">Все товары</button><button class="quick-view" type="button" data-view="offers" aria-pressed="false">Скидки / Offerte <span id="offerTotalCount"></span></button><button class="quick-view" type="button" data-view="pp" aria-pressed="false" title="Подборка по доступным характеристикам продуктов">ПП <span id="ppTotalCount"></span></button></nav></div>
-      <nav class="store-tabs" id="storeTabs" aria-label="Магазины">
-        <button class="store-tab active" type="button" data-store="all" aria-pressed="true"><span class="tab-logo all-logo">▦</span><span class="tab-title">Все магазины<small id="allStoreCount">—</small></span></button>
-        <button class="store-tab" type="button" data-store="Coop" aria-pressed="false"><span class="tab-logo coop-logo"><img src="assets/store-icons/coop.ico" alt=""></span><span class="tab-title">Coop<small id="coopCount">—</small></span></button>
-        <button class="store-tab" type="button" data-store="Conad" aria-pressed="false"><span class="tab-logo conad-logo"><img src="assets/store-icons/conad.png" alt=""></span><span class="tab-title">Conad<small id="conadCount">—</small></span></button>
-        <button class="store-tab" type="button" data-store="Lidl" aria-pressed="false"><span class="tab-logo lidl-logo"><img src="assets/store-icons/lidl.png" alt=""></span><span class="tab-title">Lidl<small id="lidlCount">—</small></span></button>
-        <button class="store-tab" type="button" data-store="Eurospin" aria-pressed="false"><span class="tab-logo eurospin-logo"><img src="assets/store-icons/eurospin.png" alt=""></span><span class="tab-title">Eurospin<small id="eurospinCount">—</small></span></button>
-      </nav>
+    <section id="catalog" aria-labelledby="categoryTitle">
+      <div class="catalog-navigation">
+        <nav class="quick-views" aria-label="Режим каталога">
+          <button class="quick-view active" type="button" data-view="all" aria-pressed="true">Все товары</button>
+          <button class="quick-view" type="button" data-view="offers" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 17 10-10"/><circle cx="7.5" cy="7.5" r="2"/><circle cx="16.5" cy="16.5" r="2"/></svg>Скидки <span id="offerTotalCount"></span></button>
+          <button class="quick-view" type="button" data-view="pp" aria-pressed="false" title="Подборка по характеристикам продуктов"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 4C8 3 3 7 5 15c8 5 15-1 14-11Z"/><path d="m4 21 10-11"/></svg>ПП <span id="ppTotalCount"></span></button>
+        </nav>
+        <nav class="store-tabs" id="storeTabs" aria-label="Магазины">
+          <button class="store-tab active" type="button" data-store="all" aria-pressed="true"><span class="tab-title">Все магазины<small id="allStoreCount">—</small></span></button>
+          <button class="store-tab" type="button" data-store="Coop" aria-pressed="false"><img src="assets/store-icons/coop.ico" alt=""><span class="tab-title">Coop<small id="coopCount">—</small></span></button>
+          <button class="store-tab" type="button" data-store="Conad" aria-pressed="false"><img src="assets/store-icons/conad.png" alt=""><span class="tab-title">Conad<small id="conadCount">—</small></span></button>
+          <button class="store-tab" type="button" data-store="Lidl" aria-pressed="false"><img src="assets/store-icons/lidl.png" alt=""><span class="tab-title">Lidl<small id="lidlCount">—</small></span></button>
+          <button class="store-tab" type="button" data-store="Eurospin" aria-pressed="false"><img src="assets/store-icons/eurospin.png" alt=""><span class="tab-title">Eurospin<small id="eurospinCount">—</small></span></button>
+        </nav>
+      </div>
       <div class="catalog-layout">
         <aside class="category-rail" id="categoryRail" aria-label="Категории и характеристики">
-          <div class="rail-heading"><span>Категории</span><button type="button" id="closeFilters" aria-label="Закрыть фильтры">×</button></div>
-
-
-          <details class="filter-section" id="characterFilters" name="catalog-filter" hidden><summary><span>Характеристики<small id="characterSelection"></small></span><svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></summary><div class="filter-body">
+          <div class="rail-heading"><h2>Каталог</h2><button class="close-button" type="button" id="closeFilters" aria-label="Закрыть фильтры">×</button></div>
+          <details class="filter-section" id="characterFilters" hidden><summary><span>Характеристики<small id="characterSelection"></small></span><svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></summary><div class="filter-body">
             <label class="character-check" id="noSugarWrap"><input id="noSugar" type="checkbox">Без сахара</label>
             <label class="character-check" id="lactoseFreeWrap" hidden><input id="lactoseFree" type="checkbox">Без лактозы</label>
-            <label class="character-select" id="sugarMaxWrap"><span id="sugarUnit">Сахар / 100 мл</span><select id="sugarMax"><option value="">Любой</option><option value="0.5">до 0,5 г</option><option value="2">до 2 г</option><option value="5">до 5 г</option><option value="10">до 10 г</option></select></label>
+            <label class="character-select" id="sugarMaxWrap"><span id="sugarUnit">Сахар / 100 г</span><select id="sugarMax"><option value="">Любой</option><option value="0.5">до 0,5 г</option><option value="2">до 2 г</option><option value="5">до 5 г</option><option value="10">до 10 г</option></select></label>
             <label class="character-select" id="fatMaxWrap" hidden><span id="fatUnit">Жиры / 100 г</span><select id="fatMax"><option value="">Любые</option><option value="0.5">до 0,5 г</option><option value="1.5">до 1,5 г</option><option value="2">до 2 г</option><option value="5">до 5 г</option></select></label>
-            <button class="text-button" id="clearCharacters" type="button">Сбросить характеристики</button>
-            <small class="character-note" id="characterNote" hidden>Только товары с опубликованной пищевой ценностью.</small>
+            <button class="text-button" id="clearCharacters" type="button">Сбросить характеристики</button><small class="character-note" id="characterNote" hidden>По опубликованной пищевой ценности.</small>
           </div></details>
           <nav id="categories" class="category-list" aria-label="Категории товаров"></nav>
-          <button class="reset-sidebar text-button" id="resetSidebar" type="button" hidden>Сбросить фильтры</button>
+          <div class="rail-footer"><button class="reset-sidebar text-button" id="resetSidebar" type="button" hidden>Сбросить фильтры</button><button id="applyFilters" type="button" class="apply-filters">Показать товары</button></div>
         </aside>
         <div class="catalog-main">
-
-          <div class="results-head"><div class="result-title"><button class="parent-breadcrumb" type="button" id="parentBreadcrumb" hidden></button><div class="result-title-line"><h1 id="categoryTitle">Все товары</h1><span class="results-count" id="resultCount" role="status">Загружаем товары…</span></div></div><div class="results-actions"><button class="mobile-filter-trigger" type="button" id="openFilters" aria-label="Открыть категории и фильтры" aria-expanded="false" aria-controls="categoryRail"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 17h16M9 4v6M15 14v6"/></svg> <span>Категории</span></button><label class="sort-box"><span class="sr-only">Сортировка</span><select id="sortSelect"><option value="default">По разделам</option><option value="price-asc">Сначала дешевле</option><option value="price-desc">Сначала дороже</option><option value="name">По названию</option></select></label></div></div>
-          <div class="product-grid" id="products" aria-live="polite"><p class="loading">Открываем буклет…</p></div>
-          <div class="empty-state" id="emptyState" hidden><span>✳</span><h3>Пока ничего не нашлось</h3><p>Попробуйте другое название или откройте все разделы.</p><button type="button" id="resetFilters">Сбросить фильтры</button></div>
-          <div class="pagination"><span id="shownCount"></span><div class="page-progress" aria-hidden="true"><span id="pageProgress"></span></div><button class="load-more" type="button" id="loadMore" hidden>Показать ещё</button></div>
+          <div class="results-head">
+            <div class="result-title"><button class="parent-breadcrumb" type="button" id="parentBreadcrumb" hidden></button><div class="result-title-line"><h1 id="categoryTitle">Все товары</h1><span class="results-count" id="resultCount" role="status">Загружаем…</span></div></div>
+            <div class="results-actions"><button class="mobile-filter-trigger" type="button" id="openFilters" aria-label="Открыть категории и фильтры" aria-expanded="false" aria-controls="categoryRail"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 17h16M9 4v6M15 14v6"/></svg><span>Каталог</span><b id="filterCounter" hidden></b></button><label class="sort-box"><span class="sr-only">Сортировка</span><select id="sortSelect"><option value="default">По разделам</option><option value="price-asc">Сначала дешевле</option><option value="price-desc">Сначала дороже</option><option value="name">По названию</option></select><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></label></div>
+          </div>
+          <div id="activeFilters" class="active-filters" aria-label="Выбранные характеристики" hidden></div>
+          <div class="product-grid" id="products" tabindex="-1" aria-live="polite"><p class="loading">Загружаем каталог…</p></div>
+          <div class="empty-state" id="emptyState" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="m15 15 6 6"/></svg><h3>Пока ничего не нашлось</h3><p>Попробуйте другое название или измените фильтры.</p><button type="button" id="resetFilters">Сбросить фильтры</button></div>
+          <div class="pagination"><button class="load-more" type="button" id="loadMore" hidden>Показать ещё</button><span id="shownCount"></span><div class="page-progress" aria-hidden="true"><span id="pageProgress"></span></div></div>
         </div>
       </div>
     </section>
-    <footer class="site-footer"><div class="footer-brand">SHOPPING <span>BY TUZIN</span></div><p>Корзина сохраняется в этом браузере.</p><button class="inline-button" type="button" data-open="about">Источники данных</button></footer>
+    <footer class="site-footer"><a class="footer-brand" href="#top">SHOPPING <span>BY TUZIN</span></a><p>Ваш список покупок — в одном месте.</p><button class="inline-button" type="button" data-open="about">О каталоге и ценах <span aria-hidden="true">↗</span></button></footer>
   </main>
-
-  <div class="drawer-overlay" id="drawerOverlay" hidden></div>
-  <div class="filter-overlay" id="filterOverlay" hidden></div>
-<aside class="cart-drawer" id="cartDrawer" role="dialog" aria-modal="true" aria-labelledby="cartTitle" hidden>
-    <div class="drawer-heading"><div><span class="eyebrow">ВАШ СПИСОК ПОКУПОК</span><h2 id="cartTitle">Корзина</h2></div><button class="close-button" type="button" id="closeCart" aria-label="Закрыть корзину">×</button></div>
-    <p class="drawer-intro">Товары сгруппированы по магазинам. Корзина сохраняется в этом браузере.</p>
+  <div class="drawer-overlay" id="drawerOverlay" hidden></div><div class="filter-overlay" id="filterOverlay" hidden></div>
+  <aside class="cart-drawer" id="cartDrawer" role="dialog" aria-modal="true" aria-labelledby="cartTitle" hidden>
+    <div class="drawer-heading"><div><span class="eyebrow">ВАШ СПИСОК ПОКУПОК</span><h2 id="cartTitle">Корзина</h2><p id="cartItemCount"></p></div><button class="close-button" type="button" id="closeCart" aria-label="Закрыть корзину">×</button></div>
     <div class="cart-items" id="cartItems"></div>
-    <div class="cart-footer" id="cartFooter" hidden><span id="cartTotalLabel">Итого</span><strong id="cartTotal">0 €</strong></div>
+    <div class="cart-footer" id="cartFooter" hidden><div class="cart-total-row"><span id="cartTotalLabel">Итого</span><strong id="cartTotal">0 €</strong></div><p id="cartPriceNote" hidden>Цены по картам лояльности в итог не включены.</p><small>Список сохраняется в этом браузере.</small></div>
   </aside>
-
-  <dialog id="aboutDialog" class="about-dialog"><div class="dialog-heading"><div><span class="eyebrow">ПРОЗРАЧНО О ДАННЫХ</span><h2>О буклете<span class="heading-period">.</span></h2></div><button class="close-button" type="button" id="closeAbout" aria-label="Закрыть">×</button></div><div class="about-body"><p>Открытые каталоги обновляются ежедневно. Цены могут измениться. Условия скидок и цены по карте указаны у соответствующих товаров.</p><h3>Как собрана подборка ПП</h3><p>В подборку входят явно свежие овощи и фрукты, йогурты с сахаром и жирами до 5 г на 100 г, молоко с жирами до 1,5 г на 100 г/мл и напитки без сахара. Числовые критерии применяются только там, где магазин публикует пищевую ценность.</p><h3>Coop · Витербо</h3><p>Каталог магазина Viterbo De Lellis для самовывоза. На карточке показана обычная цена; цена по карте Coop указана отдельно.</p><a href="https://coopacasa.coopetruria.coop.it/" target="_blank" rel="noopener noreferrer">Открыть Coop ↗</a><h3>Conad · общий каталог</h3><p>Для части товаров сайт Conad скрывает цену без выбора магазина. Такие товары видны в каталоге с надписью «Нет цены»; добавить их в корзину нельзя. Местная цена Витербо не подтверждена.</p><a href="https://spesaonline.conad.it/home" target="_blank" rel="noopener noreferrer">Открыть Conad ↗</a><h3>Lidl · Everli</h3><p>Ассортимент и цены Lidl Everli зависят от выбранной зоны обслуживания. Доступность в Витербо не подтверждена.</p><a href="https://lidl.everli.com/" target="_blank" rel="noopener noreferrer">Открыть Lidl Everli ↗</a><h3>Eurospin · онлайн-каталог</h3><p>Открытый онлайн-каталог Eurospin. Наличие и цена в Витербо не подтверждены.</p><a href="https://online.eurospin.com/" target="_blank" rel="noopener noreferrer">Открыть Eurospin ↗</a><p class="about-footnote">Названия на русском в исходном каталоге переведены автоматически. Точное наименование сохранено на итальянском. Изображения из открытых каталогов магазинов.</p></div></dialog>
-<div class="toast" id="toast" role="status" hidden></div>
+  <dialog id="aboutDialog" class="about-dialog"><div class="dialog-heading"><div><span class="eyebrow">ПРОЗРАЧНО О ДАННЫХ</span><h2>О каталоге<span class="heading-period">.</span></h2></div><button class="close-button" type="button" id="closeAbout" aria-label="Закрыть">×</button></div><div class="about-body"><p>Открытые каталоги обновляются ежедневно. Цены могут измениться. Условия скидок и цены по карте указаны у соответствующих товаров.</p><h3>Как собрана подборка ПП</h3><p>В подборку входят явно свежие овощи и фрукты, йогурты с сахаром и жирами до 5 г на 100 г, молоко с жирами до 1,5 г на 100 г/мл и напитки без сахара. Числовые критерии применяются только там, где магазин публикует пищевую ценность.</p><h3>Coop · Витербо</h3><p>Каталог магазина Viterbo De Lellis для самовывоза. На карточке показана обычная цена; цена по карте Coop указана отдельно.</p><a href="https://coopacasa.coopetruria.coop.it/" target="_blank" rel="noopener noreferrer">Открыть Coop ↗</a><h3>Conad · общий каталог</h3><p>Для части товаров сайт Conad скрывает цену без выбора магазина. Такие товары видны в каталоге с надписью «Нет цены»; добавить их в корзину нельзя. Местная цена Витербо не подтверждена.</p><a href="https://spesaonline.conad.it/home" target="_blank" rel="noopener noreferrer">Открыть Conad ↗</a><h3>Lidl · Everli</h3><p>Ассортимент и цены Lidl Everli зависят от выбранной зоны обслуживания. Доступность в Витербо не подтверждена.</p><a href="https://lidl.everli.com/" target="_blank" rel="noopener noreferrer">Открыть Lidl Everli ↗</a><h3>Eurospin · онлайн-каталог</h3><p>Открытый онлайн-каталог Eurospin. Наличие и цена в Витербо не подтверждены.</p><a href="https://online.eurospin.com/" target="_blank" rel="noopener noreferrer">Открыть Eurospin ↗</a><p class="about-footnote">Названия на русском в исходном каталоге переведены автоматически. Точное наименование сохранено на итальянском. Изображения из открытых каталогов магазинов.</p></div></dialog>
+  <div class="toast" id="toast" role="status" hidden></div>
 </body>
 </html>

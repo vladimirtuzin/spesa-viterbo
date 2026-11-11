@@ -8,28 +8,41 @@ const normalize = value => String(value??'').normalize('NFKD').replace(/\p{Diacr
 const hasPrice = product => Number.isFinite(product.price)&&product.price>0;
 const state = {store:'all',category:'',subcategory:'',query:'',deals:false,pp:false,noSugar:false,lactoseFree:false,sugarMax:'',fatMax:'',sort:'default',limit:40,products:[],filtered:[],cart:new Map()};
 const map=new Map(),infoCache=new Map(),infoShards=new Map(),expandedCategories=new Set();
-let meta,infoIndex,taxonomy,searchTimer,lastFocus;
+let meta,infoIndex,taxonomy,searchTimer,lastFocus,lastFocusKey;
 const storeIcons={Coop:'coop.ico',Conad:'conad.png',Lidl:'lidl.png',Eurospin:'eurospin.png'};
 const infoIcon='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v6M12 7v.5"/></svg>';
 const cartIcon='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 3h3l2.1 12h12.4l2-9H6"/><circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/></svg>';
+const plusIcon='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+const checkIcon='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>';
 const chevron='<svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>';
+document.addEventListener('error',event=>{if(event.target.tagName==='IMG'){const photo=event.target.closest('.photo-window');if(photo)photo.outerHTML=imageMarkup({image:''});}},true);
 function imageMarkup(product,small=false){
   if(!product.image)return '<span class="placeholder-art"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="m4 17 5-5 4 4 3-3 5 5"/><circle cx="15" cy="8" r="2"/></svg><small>Нет изображения</small></span>';
   const alt=small?'':escapeHtml(product.name_ru||product.name_it);
   if(product.direct_image)return `<div class="photo-window direct"><img src="${escapeHtml(product.image)}" alt="${alt}" loading="lazy" decoding="async"></div>`;
   return `<div class="photo-window"><img src="${escapeHtml(product.image)}" alt="${alt}" loading="lazy" decoding="async" style="width:${product.sprite_columns*100}%;height:${product.sprite_rows*100}%;left:-${product.sprite_x*100}%;top:-${product.sprite_y*100}%"></div>`;
 }
+const lineTotal=(product,quantity)=>hasPrice(product)?Math.round(product.price*100)*quantity/100:0;
+const memberPrice=product=>hasPrice(product)&&!product.future&&!product.expired&&Number.isFinite(product.member_price)&&product.member_price>0&&product.member_price<product.price?product.member_price:null;
+function measure(value){
+  const units={kg:'кг',g:'г',ml:'мл',cl:'сл',l:'л',lt:'л',pz:'шт.'};
+  return String(value||'').replace(/€\s*([\d.,]+)/g,'$1 €').replace(/\b(?:confezione|confezioni)\b/gi,'упаковка').replace(/\bbottiglia\b/gi,'бутылка').replace(/\blattina\b/gi,'банка').replace(/\b(?:rete|busta)\b/gi,'пакет').replace(/\b(?:circa|ca)\b\.?/gi,'≈').replace(/\ba peso\b/gi,'на вес').replace(/(\d)\s*(kg|ml|cl|g|l)\b/gi,(_,n,u)=>`${n} ${units[u.toLowerCase()]}`).replace(/\b(kg|ml|cl|lt|g|l|pz)\b/gi,u=>units[u.toLowerCase()]).replace(/(\d)\.(?=\d)/g,'$1,').replace(/\s*[x×]\s*(?=\d)/g,' × ').replace(/\s+e$/i,' ℮');
+}
 function card(product){
-  const key=escapeHtml(product.key),name=escapeHtml(product.name_ru||product.name_it);
-  const note=product.member_price?`<div class="member-offer">С картой Coop <strong>${euro(product.member_price)}</strong></div>`:isDeal(product)&&product.note?`<div class="offer-note">${escapeHtml(product.note)}</div>`:'';
-  const infoButton=`<button class="info-button" type="button" data-info="${key}" aria-label="Состав и пищевая ценность: ${name}" aria-expanded="false" aria-controls="spec-${key}" title="Состав и пищевая ценность">${infoIcon}</button>`;
-  const details=`<section class="card-details" id="spec-${key}" aria-label="Состав и пищевая ценность" hidden><div class="spec-scroll" tabindex="0" data-spec-content></div></section>`;
-  return `<article class="product-card" data-key="${key}" tabindex="-1" aria-label="${name}"><div class="card-heading"><span class="card-store store-${product.store.toLowerCase()}"><img src="assets/store-icons/${storeIcons[product.store]}" alt=""><span>${escapeHtml(product.store)}</span></span>${infoButton}</div><div class="card-visual"><div class="product-media">${imageMarkup(product)}</div>${details}</div><div class="product-content"><h3 class="product-name" lang="ru" title="${name}">${name}</h3><p class="pack">${escapeHtml(product.pack||'')}</p></div><div class="card-bottom"><div class="price-block"><span class="price ${hasPrice(product)?'':'unpriced'}">${hasPrice(product)?euro(product.price):'Нет цены'}</span>${product.unit_price?`<span class="unit-price">${escapeHtml(product.unit_price)}</span>`:''}${note}</div><div class="cart-card-control" data-cart-control="${key}">${cartControl(product)}</div></div></article>`;
+  const key=escapeHtml(product.key),name=escapeHtml(product.name_ru||product.name_it),loyalty=memberPrice(product);
+  const note=loyalty!=null?`<span class="member-offer"><strong>${euro(loyalty)}</strong> по карте ${escapeHtml(product.store)}${product.note?.includes(' · ')?`<small>${escapeHtml(product.note.split(' · ').slice(1).join(' · '))}</small>`:''}</span>`:isDeal(product)&&product.note?`<span class="offer-note">${escapeHtml(product.note)}</span>`:'';
+  return `<article class="product-card" data-key="${key}" tabindex="-1" aria-label="${name}">
+    <div class="card-heading"><span class="card-store store-${product.store.toLowerCase()}"><img src="assets/store-icons/${storeIcons[product.store]}" alt=""><span>${escapeHtml(product.store)}</span></span><button class="info-button" type="button" data-info="${key}" aria-label="Состав и пищевая ценность: ${name}" aria-expanded="false" aria-controls="spec-${key}" title="Состав и пищевая ценность">${infoIcon}</button></div>
+    <div class="card-visual"><div class="product-media">${imageMarkup(product)}</div><section class="card-details" id="spec-${key}" aria-label="Состав и пищевая ценность" hidden><div class="spec-scroll" tabindex="0" data-spec-content></div></section></div>
+    <div class="product-content"><h3 class="product-name" lang="ru" title="${name}">${name}</h3><p class="pack">${escapeHtml(measure(product.pack))}</p></div>
+    <div class="purchase-row"><span class="price ${hasPrice(product)?loyalty==null&&isDeal(product)?'sale-price':'':'unpriced'}">${hasPrice(product)?euro(product.price):'Нет цены'}</span><div class="cart-card-control" data-cart-control="${key}">${cartControl(product)}</div></div>
+    <div class="price-meta">${product.unit_price?`<span class="unit-price">${escapeHtml(measure(product.unit_price))}</span>`:''}${note}</div>
+  </article>`;
 }
 function cartControl(product){
-  const key=escapeHtml(product.key),quantity=state.cart.get(product.key)||0;
-  if(!hasPrice(product))return `<button type="button" class="add-cart" disabled aria-label="Нельзя добавить: цена не опубликована">${cartIcon}<span>Добавить в кошик</span></button>`;
-  return quantity?`<div class="card-quantity"><button type="button" data-cart-change="${key}" data-delta="-1" aria-label="Уменьшить количество">−</button><button type="button" data-open="cart" class="quantity-status">${quantity} в кошике</button><button type="button" data-cart-change="${key}" data-delta="1" aria-label="Увеличить количество">+</button></div>`:`<button type="button" class="add-cart" data-add-cart="${key}">${cartIcon}<span>Добавить в кошик</span></button>`;
+  const key=escapeHtml(product.key),quantity=state.cart.get(product.key)||0,name=escapeHtml(product.name_ru||product.name_it);
+  if(!hasPrice(product))return `<button type="button" class="add-cart" disabled aria-label="Нельзя добавить: цена не опубликована" title="Цена не опубликована">${plusIcon}</button>`;
+  return quantity?`<button type="button" class="in-cart" data-open="cart" aria-label="${name}: в корзине ${quantity}. Изменить количество" title="В корзине ${quantity}. Изменить количество">${quantity<100?checkIcon:''}<span>${quantity<100?quantity:'99+'}</span></button>`:`<button type="button" class="add-cart" data-add-cart="${key}" aria-label="Добавить в корзину: ${name}" title="Добавить в корзину">${plusIcon}</button>`;
 }
 function updateCartCount(){$('cartCount').textContent=number([...state.cart.values()].reduce((sum,quantity)=>sum+quantity,0));}
 function setCartQuantity(key,quantity){
@@ -46,18 +59,24 @@ function setCartQuantity(key,quantity){
     const scope=wasInDrawer?$('cartDrawer'):$('products');
     const next=[...scope.querySelectorAll('[data-cart-change]')].find(button=>button.dataset.cartChange===key&&button.dataset.delta===focusDelta);
     const add=[...scope.querySelectorAll('[data-add-cart]')].find(button=>button.dataset.addCart===key);
-    (next||add||$('closeCart')).focus({preventScroll:true});
+    const cardButton=wasInDrawer?null:[...$('products').querySelectorAll('[data-cart-control]')].find(e=>e.dataset.cartControl===key)?.querySelector('button');
+    (next||add||cardButton||$('closeCart')).focus({preventScroll:true});
   }else if(removed)($('cartItems').querySelector('[data-cart-remove]')||$('closeCart')).focus({preventScroll:true});
   return true;
 }
 function renderCart(){
   const entries=[...state.cart].map(([key,quantity])=>({product:map.get(key),quantity})).filter(entry=>entry.product),stores=[...new Set(entries.map(entry=>entry.product.store))];
-  $('cartItems').innerHTML=entries.length?stores.map(store=>`<section class="cart-group"><h3><img src="assets/store-icons/${storeIcons[store]}" alt="">${escapeHtml(store)}</h3>${entries.filter(entry=>entry.product.store===store).map(({product,quantity})=>`<article class="cart-item"><div class="cart-thumb">${imageMarkup(product,true)}</div><div class="cart-item-body"><strong>${escapeHtml(product.name_ru||product.name_it)}</strong><small>${escapeHtml(product.pack||'')}</small><div class="cart-item-bottom"><div class="quantity-stepper"><button type="button" data-cart-change="${escapeHtml(product.key)}" data-delta="-1" aria-label="Уменьшить количество">−</button><output>${quantity}</output><button type="button" data-cart-change="${escapeHtml(product.key)}" data-delta="1" aria-label="Увеличить количество" ${hasPrice(product)?'':'disabled'}>+</button></div><b>${hasPrice(product)?euro(product.price*quantity):'Нет цены'}</b></div></div><button class="remove-cart" type="button" data-cart-remove="${escapeHtml(product.key)}" aria-label="Удалить ${escapeHtml(product.name_ru||product.name_it)} из корзины">×</button></article>`).join('')}</section>`).join(''):`<div class="cart-empty">${cartIcon}<h3>В корзине пока пусто</h3><p>Добавьте товары из каталога.</p></div>`;
+  $('cartItemCount').textContent=entries.length?productCount(entries.length):'Соберите свой список покупок';
+  $('cartItems').innerHTML=entries.length?stores.map(store=>{
+    const items=entries.filter(entry=>entry.product.store===store);
+    return `<section class="cart-group"><h3><span><img src="assets/store-icons/${storeIcons[store]}" alt="">${escapeHtml(store)}</span><b>${euro(items.reduce((sum,{product,quantity})=>sum+Math.round((hasPrice(product)?product.price:0)*100)*quantity,0)/100)}</b></h3>${items.map(({product,quantity})=>`<article class="cart-item"><div class="cart-thumb">${imageMarkup(product,true)}</div><div class="cart-item-body"><strong>${escapeHtml(product.name_ru||product.name_it)}</strong><small>${[measure(product.pack),hasPrice(product)?euro(product.price):''].filter(Boolean).map(escapeHtml).join(' · ')}</small><div class="cart-item-bottom"><div class="quantity-stepper"><button type="button" data-cart-change="${escapeHtml(product.key)}" data-delta="-1" aria-label="Уменьшить количество">−</button><output>${quantity}</output><button type="button" data-cart-change="${escapeHtml(product.key)}" data-delta="1" aria-label="Увеличить количество" ${hasPrice(product)?'':'disabled'}>+</button></div><b>${hasPrice(product)?euro(lineTotal(product,quantity)):'Нет цены'}</b></div></div><button class="remove-cart" type="button" data-cart-remove="${escapeHtml(product.key)}" aria-label="Удалить ${escapeHtml(product.name_ru||product.name_it)} из корзины">×</button></article>`).join('')}</section>`;
+  }).join(''):`<div class="cart-empty"><span>${cartIcon}</span><h3>Начнём со списка?</h3><p>Нажмите плюс рядом с ценой товара — он появится здесь.</p><button type="button" class="return-catalog" data-close-cart>В каталог ${chevron}</button></div>`;
   $('cartFooter').hidden=!entries.length;
-  $('cartTotal').textContent=euro(entries.reduce((sum,{product,quantity})=>sum+(product.price||0)*quantity,0));
+  $('cartTotal').textContent=euro(entries.reduce((sum,{product,quantity})=>sum+Math.round((hasPrice(product)?product.price:0)*100)*quantity,0)/100);
   $('cartTotalLabel').textContent=entries.some(({product})=>!hasPrice(product))?'По опубликованным ценам':'Итого';
+  $('cartPriceNote').hidden=!entries.some(({product})=>memberPrice(product)!=null);
 }
-function isDeal(product){return hasPrice(product)&&!product.future&&!product.expired&&(!!product.member_price||/^-\d+%/.test(product.note||'')||product.note==='Акционная цена');}
+function isDeal(product){return hasPrice(product)&&!product.future&&!product.expired&&(memberPrice(product)!=null||/^-\d+%/.test(product.note||'')||product.note==='Акционная цена');}
 function ppRank(product){
   const a=product._attributes||{};
   if(product.category==='fruit'||product.category==='vegetables'){
@@ -84,7 +103,7 @@ function renderCategories(){
   let html=`<button class="category category-all ${!state.category?'active':''}" type="button" data-category="" aria-pressed="${!state.category}"><span>${allLabel}</span><small>${number(eligible.length)}</small></button>`;
   html+=meta.categories.map(category=>{
     const expanded=expandedCategories.has(category.id),selected=state.category===category.id,count=counts.get(category.id)||0,children=taxonomy.find(group=>group.id===category.id)?.children||[];
-    return `<div class="category-group"><button class="category ${selected?'selected-parent':''} ${selected&&!state.subcategory?'active':''} ${count?'':'no-results'}" type="button" data-category="${category.id}" aria-expanded="${expanded}" aria-controls="children-${category.id}" aria-pressed="${selected&&!state.subcategory}"><span>${escapeHtml(category.name)}</span><small>${number(count)}</small>${chevron}</button><div class="category-children" id="children-${category.id}" ${expanded?'':'hidden'}>${children.filter(child=>childCounts.get(child.id)||state.subcategory===child.id).map(child=>`<button class="category child-category ${state.subcategory===child.id?'active':''}" type="button" data-subcategory="${child.id}" data-parent="${category.id}" aria-pressed="${state.subcategory===child.id}"><span>${escapeHtml(child.name)}</span><small>${number(childCounts.get(child.id)||0)}</small></button>`).join('')||'<p class="category-empty">Нет товаров по выбранным фильтрам</p>'}</div></div>`;
+    return `<div class="category-group"><button class="category ${selected?'selected-parent':''} ${selected&&!state.subcategory?'active':''} ${count?'':'no-results'}" type="button" data-category="${category.id}" aria-expanded="${expanded}" aria-controls="children-${category.id}" ${!count&&!selected?'disabled':''} aria-pressed="${selected&&!state.subcategory}"><span>${escapeHtml(category.name)}</span><small>${number(count)}</small>${chevron}</button><div class="category-children" id="children-${category.id}" ${expanded?'':'hidden'}>${children.filter(child=>childCounts.get(child.id)||state.subcategory===child.id).map(child=>`<button class="category child-category ${state.subcategory===child.id?'active':''}" type="button" data-subcategory="${child.id}" data-parent="${category.id}" aria-pressed="${state.subcategory===child.id}"><span>${escapeHtml(child.name)}</span><small>${number(childCounts.get(child.id)||0)}</small></button>`).join('')||'<p class="category-empty">Нет товаров по выбранным фильтрам</p>'}</div></div>`;
   }).join('');$('categories').innerHTML=html;
   if(focused)[...$('categories').querySelectorAll('button')].find(button=>focusChild?button.dataset.subcategory===focusChild:button.dataset.category===focusCategory)?.focus({preventScroll:true});
 }
@@ -109,7 +128,8 @@ function renderCharacteristics(){
   $('sugarUnit').textContent=`Сахар / ${basis}`;$('fatUnit').textContent=`Жиры / ${basis}`;
   $('noSugar').checked=state.noSugar;$('lactoseFree').checked=state.lactoseFree;$('sugarMax').value=state.sugarMax;$('fatMax').value=state.fatMax;$('characterNote').hidden=!state.sugarMax&&!state.fatMax;
   const chosen=[state.noSugar,state.lactoseFree,!!state.sugarMax,!!state.fatMax].filter(Boolean).length;
-  $('characterSelection').textContent=chosen?`Выбрано: ${chosen}`:'Сахар, жиры и состав';$('resetSidebar').hidden=state.store==='all'&&!state.category&&!state.query&&!chosen&&state.sort==='default';
+  $('filterCounter').hidden=!chosen;$('filterCounter').textContent=chosen;
+  $('characterSelection').textContent=$('categoryTitle').textContent+(chosen?` · выбрано: ${chosen}`:'');$('resetSidebar').hidden=state.store==='all'&&!state.category&&!state.query&&!chosen&&state.sort==='default';
 }
 function render(){
   if(!meta)return;state.limit=40;state.filtered=state.products.filter(product=>matches(product));
@@ -133,8 +153,12 @@ function render(){
   $('categoryTitle').textContent=title||(state.deals?'Скидки / Offerte':state.pp?'Правильное питание':'Все товары');$('resultCount').textContent=productCount(state.filtered.length);
   $('parentBreadcrumb').hidden=!state.subcategory;$('parentBreadcrumb').textContent=meta.categories.find(c=>c.id===state.category)?.name||'';$('sortSelect').options[0].textContent=state.pp?'По подборке':'По разделам';
   updatePagination();renderCharacteristics();
+  $('clearSearch').hidden=!state.query;$('applyFilters').textContent=`Показать ${productCount(state.filtered.length)}`;
+  const chosenFilters=[['noSugar',state.noSugar,'Без сахара'],['lactoseFree',state.lactoseFree,'Без лактозы'],['sugarMax',state.sugarMax,`Сахар до ${state.sugarMax.replace('.',',')} г`],['fatMax',state.fatMax,`Жиры до ${state.fatMax.replace('.',',')} г`]].filter(([,value])=>value);
+  $('activeFilters').hidden=!chosenFilters.length;$('activeFilters').innerHTML=chosenFilters.map(([key,,label])=>`<button type="button" data-clear-filter="${key}" aria-label="Убрать фильтр: ${escapeHtml(label)}">${escapeHtml(label)} <span aria-hidden="true">×</span></button>`).join('');
   document.querySelectorAll('[data-view]').forEach(button=>{const active=button.dataset.view===(state.deals?'offers':state.pp?'pp':'all');button.classList.toggle('active',active);button.setAttribute('aria-pressed',active);});
-  document.querySelectorAll('.store-tab').forEach(button=>{const active=button.dataset.store===state.store;button.classList.toggle('active',active);button.setAttribute('aria-pressed',active);});renderCategories();syncUrl();
+  document.querySelectorAll('.store-tab').forEach(button=>{const active=button.dataset.store===state.store;button.classList.toggle('active',active);button.setAttribute('aria-pressed',active);button.disabled=!active&&button.dataset.store!=='all'&&!(storeCounts.get(button.dataset.store)||0);});renderCategories();syncUrl();
+  const heading=document.querySelector('.catalog-main');if(heading.getBoundingClientRect().top<90)heading.scrollIntoView({block:'start',behavior:'instant'});
 }
 function showToast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>$('toast').hidden=true,2400);}
 async function loadProductInfo(key){
@@ -169,11 +193,13 @@ async function loadCardSpecs(element){
   }catch{content.innerHTML='<p class="spec-status">Не удалось загрузить состав. <button type="button" class="text-button" data-retry-info>Повторить</button></p>';delete element.dataset.specsLoaded;}
 }
 function showSpecs(element,open){element.classList.toggle('spec-open',open);element.querySelector('.card-details').hidden=!open;element.querySelector('[data-info]').setAttribute('aria-expanded',open);element.querySelector('.product-media').setAttribute('aria-hidden',open);if(open)loadCardSpecs(element);}
-function openDrawer(){lastFocus=document.activeElement;closeFilters(false);renderCart();$('drawerOverlay').hidden=false;$('cartDrawer').hidden=false;document.body.style.overflow='hidden';$('closeCart').focus();}
-function closeDrawer(){$('drawerOverlay').hidden=true;$('cartDrawer').hidden=true;document.body.style.overflow='';if(lastFocus?.isConnected)lastFocus.focus();else document.querySelector('.cart-trigger').focus();}
+function openDrawer(){lastFocus=document.activeElement;lastFocusKey=lastFocus?.closest('[data-cart-control]')?.dataset.cartControl;closeFilters(false);renderCart();$('drawerOverlay').hidden=false;$('cartDrawer').hidden=false;document.body.style.overflow='hidden';syncFilterPanel();$('closeCart').focus();}
+function closeDrawer(){$('drawerOverlay').hidden=true;$('cartDrawer').hidden=true;document.body.style.overflow='';syncFilterPanel();if(lastFocus?.isConnected)lastFocus.focus();else ([...document.querySelectorAll('[data-cart-control]')].find(e=>e.dataset.cartControl===lastFocusKey)?.querySelector('button')||document.querySelector('.cart-trigger')).focus({preventScroll:true});}
 function selectCategory(category,subcategory=''){Object.assign(state,{category,subcategory,noSugar:false,lactoseFree:false,sugarMax:'',fatMax:''});render();}
 document.addEventListener('click',event=>{
-  const add=event.target.closest('[data-add-cart]');if(add){if(setCartQuantity(add.dataset.addCart,(state.cart.get(add.dataset.addCart)||0)+1))showToast('Добавлено в кошик');return;}
+  if(event.target.closest('[data-close-cart]')){closeDrawer();return;}
+  const clear=event.target.closest('[data-clear-filter]');if(clear&&['noSugar','lactoseFree','sugarMax','fatMax'].includes(clear.dataset.clearFilter)){state[clear.dataset.clearFilter]=clear.dataset.clearFilter.endsWith('Max')?'':false;render();($('activeFilters').querySelector('button')||(mobileFilters.matches?$('openFilters'):$('characterFilters').querySelector('summary'))).focus({preventScroll:true});return;}
+  const add=event.target.closest('[data-add-cart]');if(add){if(setCartQuantity(add.dataset.addCart,(state.cart.get(add.dataset.addCart)||0)+1))showToast('Добавлено в корзину');return;}
   const change=event.target.closest('[data-cart-change]');if(change){setCartQuantity(change.dataset.cartChange,(state.cart.get(change.dataset.cartChange)||0)+Number(change.dataset.delta));return;}
   const remove=event.target.closest('[data-cart-remove]');if(remove){setCartQuantity(remove.dataset.cartRemove,0);return;}
   const info=event.target.closest('[data-info]');if(info){const card=info.closest('.product-card');showSpecs(card,!card.classList.contains('spec-open'));return;}
@@ -184,11 +210,14 @@ document.addEventListener('click',event=>{
   const child=event.target.closest('[data-subcategory]');if(child){selectCategory(child.dataset.parent,child.dataset.subcategory);closeFilters();return;}
   const category=event.target.closest('[data-category]');if(category){const id=category.dataset.category;if(id){if(expandedCategories.has(id))expandedCategories.delete(id);else expandedCategories.add(id);}else expandedCategories.clear();selectCategory(id);}
 });
+new ResizeObserver(()=>document.documentElement.style.setProperty('--header-height',`${document.querySelector('.site-header').getBoundingClientRect().height}px`)).observe(document.querySelector('.site-header'));
 const mobileFilters=matchMedia('(max-width:960px)');
-function syncFilterPanel(){$('categoryRail').inert=mobileFilters.matches&&!document.body.classList.contains('filters-open');}
+function syncFilterPanel(){const filtering=document.body.classList.contains('filters-open'),cart=!$('cartDrawer').hidden;document.querySelector('.site-header').inert=filtering||cart;document.querySelector('.skip-link').inert=filtering||cart;document.querySelector('.page-shell').inert=cart;for(const selector of ['.catalog-main','.catalog-navigation','.site-footer'])document.querySelector(selector).inert=filtering;$('categoryRail').inert=mobileFilters.matches&&!filtering;}
 function closeFilters(restoreFocus=true){const wasOpen=document.body.classList.contains('filters-open');document.body.classList.remove('filters-open');$('filterOverlay').hidden=true;$('openFilters').setAttribute('aria-expanded','false');$('categoryRail').removeAttribute('role');$('categoryRail').removeAttribute('aria-modal');syncFilterPanel();if(restoreFocus&&wasOpen&&mobileFilters.matches)$('openFilters').focus();}
 $('openFilters').addEventListener('click',()=>{document.body.classList.add('filters-open');$('filterOverlay').hidden=false;$('openFilters').setAttribute('aria-expanded','true');$('categoryRail').setAttribute('role','dialog');$('categoryRail').setAttribute('aria-modal','true');syncFilterPanel();$('closeFilters').focus();});
 mobileFilters.addEventListener('change',()=>{if(!mobileFilters.matches)closeFilters();syncFilterPanel();});syncFilterPanel();
+$('applyFilters').addEventListener('click',()=>closeFilters());
+$('clearSearch').addEventListener('click',()=>{clearTimeout(searchTimer);state.query='';$('searchInput').value='';render();$('searchInput').focus();});
 $('closeFilters').addEventListener('click',closeFilters);$('filterOverlay').addEventListener('click',closeFilters);
 $('searchInput').addEventListener('input',event=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>{state.query=event.target.value.trim();render();},160);});
 for(const id of ['noSugar','lactoseFree','sugarMax','fatMax'])$(id).addEventListener('change',event=>{state[id]=event.target.type==='checkbox'?event.target.checked:event.target.value;render();});

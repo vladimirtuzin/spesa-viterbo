@@ -1,6 +1,7 @@
 """Smoke-check the three public product information sources."""
 
 from api.info import product_info
+from refresh_attributes import kind, nutrition_values
 
 
 CASES = [
@@ -13,4 +14,8 @@ CASES = [
 for store, url, key in CASES:
     info = product_info(store, url, key)
     assert info["ingredients"] and info["nutrition"] and info["nutrition"]["rows"], store
+    assert nutrition_values(info["nutrition"]).get("fat_g") is not None, store
     print(store, "OK")
+
+assert kind({"category": "dairy", "name_it": "Latte scremato senza lattosio"}) == "milk"
+assert kind({"category": "dairy", "name_it": "Besciamella con latte italiano"}) is None

@@ -28,7 +28,7 @@ function cleanCatalogName(product) {
     .replace(/\b(?:бсг?|бтг|втбг|вх|кт|рт|мз)\b\.?/gi, '')
     .replace(/\s+/g, ' ').trim();
 }
-const state = {store:'all',category:'',query:'',priced:true,deals:false,sort:'default',limit:40,products:[],filtered:[],favorites:new Set()};
+const state = {store:'all',category:'',query:'',priced:true,deals:false,pp:false,kind:'',noSugar:false,lactoseFree:false,sugarMax:'',fatMax:'',sort:'default',limit:40,products:[],filtered:[],favorites:new Set()};
 const map = new Map();
 const infoCache = new Map();
 let meta, searchTimer, lastFocus;
@@ -42,6 +42,7 @@ const scope = {
   Eurospin:'Онлайн-каталог Eurospin. Наличие и цена в Витербо не подтверждены.'
 };
 const storeIcons = {Coop:'coop.ico',Conad:'conad.png',Lidl:'lidl.png',Eurospin:'eurospin.png'};
+const kinds = {soda:{name:'Газировка',category:'drinks'},yogurt:{name:'Йогурты',category:'dairy'},milk:{name:'Молоко',category:'dairy'}};
 const categoryIcons = {fruit:'◒',vegetables:'♧',nuts:'◇',meat:'◖',deli:'≋',fish:'◁',dairy:'◧',cheese:'△',bread:'⌒',sweets:'◇',breakfast:'◉',pasta:'〰',pantry:'▤',baking:'⋰',ready:'▱',frozen:'❄',drinks:'◫',coffee:'☕',alcohol:'♙',special:'✧',kids:'☆',pets:'♧',care:'◍',cleaning:'✳',home:'⌂',clothes:'♢',garden:'✿',other:'▧'};
 
 function imageMarkup(product, small=false) {
@@ -66,21 +67,52 @@ function isDeal(product) {
     (!!product.member_price || /^-\d+%/.test(product.note || '') || product.note === 'Акционная цена');
 }
 
-function matches(product, ignoreCategory=false) {
-  return (state.store==='all' || product.store===state.store) &&
+function ppRank(product) {
+  const a=product._attributes||{};
+  if (product.category==='fruit'||product.category==='vegetables') {
+    const label=`${product.name_it} ${product.pack||''}`;
+    if (/sciropp|candit|disidrat|essiccat|conserv|confettur|marmellat|succo|salsa|sott.?olio|in olio|grigliat|fritt|chips|zuccherat|passata|vellutata|omogeneizzat|surgelat|zuppa|spremuta|sottaceto|agrodolce|acetelli|giardiniera|salamoia|vaso vetro|\bv\.\s*v\.|snack|gusto|precott|decorticat/i.test(label)) return null;
+    const fresh=/\bcat\.?\s*[i1]\b|percorso qualità|fresc[oaie]|a peso|1 pz|\b(?:rete|mazzo|pezzo|vassoio|vaschetta)\b/i.test(label) || product.store==='Lidl'&&/\b(?:confezione|busta)\s+[\d.,]+\s*kg\b/i.test(product.pack||'')&&/^(?:cuori di iceberg|insalata|carote|valeriana|lattughino|lattuga|rucola|spinaci|pomodori|broccoli|cavolo|cavolfiore|cetrioli|peperoni|zucchine|melanzane|fagiolini|funghi|fragole|mirtilli|lamponi|uva|mele|pere|arance|mandarini|limoni|pesche|albicocche|banane|kiwi|avocado)\b/i.test(product.name_it);
+    return fresh ? product.category==='vegetables'?0:20 : null;
+  }
+  if (a.kind==='yogurt'&&a.sugar_g!=null&&a.sugar_g<=5&&a.fat_g!=null&&a.fat_g<=5) return 100+a.sugar_g*10+a.fat_g;
+  if (a.kind==='milk'&&a.fat_g!=null&&a.fat_g<=1.5) return 200+a.fat_g*10;
+  if (a.kind==='soda'&&(a.sugar_free||a.sugar_g!=null&&a.sugar_g<=0.5)) return 300+(a.sugar_g||0);
+  return null;
+}
+
+function matches(product, ignoreCategory=false, ignoreStore=false, ignoreKind=false, ignoreView=false, ignoreAttributes=false) {
+  const attributes=product._attributes||{};
+  return (ignoreStore || state.store==='all' || product.store===state.store) &&
     (ignoreCategory || !state.category || product.category===state.category) &&
     (!state.priced || !!product.price) &&
-    (!state.deals || isDeal(product)) &&
+    (ignoreView || !state.deals || isDeal(product)) &&
+    (ignoreView || !state.pp || product._ppRank!=null) &&
+    (ignoreKind || !state.kind || attributes.kind===state.kind) &&
+    (ignoreAttributes || !state.noSugar || attributes.sugar_free) &&
+    (ignoreAttributes || !state.lactoseFree || attributes.lactose_free) &&
+    (ignoreAttributes || !state.sugarMax || attributes.sugar_g!=null && attributes.sugar_g<=Number(state.sugarMax)) &&
+    (ignoreAttributes || !state.fatMax || attributes.fat_g!=null && attributes.fat_g<=Number(state.fatMax)) &&
     (!state.query || product._search.includes(normalize(state.query)));
 }
 
 function renderCategories() {
-  const eligible = state.products.filter(product => matches(product,true));
+  const eligible = state.products.filter(product => matches(product,true,false,true,false,true));
   const counts = new Map();
   for (const product of eligible) counts.set(product.category,(counts.get(product.category)||0)+1);
-  const categories = [{id:'',name:state.deals?'Все скидки':'Все товары',count:eligible.length},...meta.categories.map(category=>({...category,count:counts.get(category.id)||0}))];
-  $('categories').innerHTML = categories.map(category=>`<button class="category ${state.category===category.id?'active':''}" type="button" data-category="${category.id}" aria-pressed="${state.category===category.id}"><span class="category-icon" aria-hidden="true">${category.id?categoryIcons[category.id]||'◇':'▦'}</span><span>${escapeHtml(category.name)}</span><small>${number(category.count)}</small></button>`).join('');
-  $('mobileCategories').innerHTML = categories.filter(category=>category.count).map(category=>`<button class="mobile-category ${state.category===category.id?'active':''}" type="button" data-category="${category.id}" aria-pressed="${state.category===category.id}">${escapeHtml(category.name)}</button>`).join('');
+  const categories = [{id:'',name:state.deals?'Все скидки':state.pp?'Все ПП-товары':'Все товары',count:eligible.length},...meta.categories.map(category=>({...category,count:counts.get(category.id)||0}))]
+    .filter(category=>!category.id || category.count || category.id===state.category);
+  if (state.kind) {
+    const selected=categories.findIndex(category=>category.id===state.category);
+    if (selected>1) categories.splice(1,0,categories.splice(selected,1)[0]);
+  }
+  $('categories').innerHTML = categories.map(category=>{
+    const children=Object.entries(kinds).filter(([,kind])=>kind.category===category.id).map(([id,kind])=>{
+      const count=eligible.filter(product=>product.category===category.id&&product._attributes?.kind===id).length;
+      return count||state.kind===id?`<button class="subcategory ${state.kind===id?'active':''}" type="button" data-kind="${id}" aria-pressed="${state.kind===id}"><span>${kind.name}</span><small>${number(count)}</small></button>`:'';
+    }).join('');
+    return `<button class="category ${state.category===category.id&&!state.kind?'active':''}" type="button" data-category="${category.id}" aria-pressed="${state.category===category.id&&!state.kind}"><span class="category-icon" aria-hidden="true">${category.id?categoryIcons[category.id]||'◇':'▦'}</span><span>${escapeHtml(category.name)}</span><small>${number(category.count)}</small></button>${children}`;
+  }).join('');
 }
 
 function syncUrl() {
@@ -89,6 +121,12 @@ function syncUrl() {
   if (state.category) params.set('category',state.category);
   if (state.query) params.set('q',state.query);
   if (state.deals) params.set('offers','1');
+  if (state.pp) params.set('pp','1');
+  if (state.kind) params.set('kind',state.kind);
+  if (state.noSugar) params.set('noSugar','1');
+  if (state.lactoseFree) params.set('lactoseFree','1');
+  if (state.sugarMax) params.set('sugarMax',state.sugarMax);
+  if (state.fatMax) params.set('fatMax',state.fatMax);
   if (!state.priced) params.set('allPrices','1');
   if (state.sort!=='default') params.set('sort',state.sort);
   history.replaceState(null,'',location.pathname+(params.size?'?'+params:''));
@@ -108,6 +146,21 @@ function showMore() {
   $('products').insertAdjacentHTML('beforeend',state.filtered.slice(start,state.limit).map(card).join(''));
   updatePagination();
 }
+function renderCharacteristics() {
+  $('characterFilters').hidden=!state.kind;
+  $('noSugarWrap').hidden=state.kind!=='soda';
+  $('lactoseFreeWrap').hidden=state.kind!=='milk';
+  $('sugarMaxWrap').hidden=state.kind==='milk';
+  $('fatMaxWrap').hidden=state.kind==='soda';
+  $('sugarUnit').textContent=state.kind==='soda'?'Сахар / 100 мл':'Сахар / 100 г';
+  $('fatUnit').textContent=state.kind==='milk'?'Жиры / 100 мл':'Жиры / 100 г';
+  $('noSugar').checked=state.noSugar;
+  $('lactoseFree').checked=state.lactoseFree;
+  $('sugarMax').value=state.sugarMax;
+  $('fatMax').value=state.fatMax;
+  $('characterNote').hidden=!state.sugarMax&&!state.fatMax;
+  $('openFilters').querySelector('span').textContent=state.kind?`Категории · ${kinds[state.kind].name}`:'Категории и фильтры';
+}
 function render() {
   if (!meta) return;
   state.limit=40;
@@ -120,20 +173,34 @@ function render() {
       return (a.price-b.price)*(state.sort==='price-desc'?-1:1);
     }
     if (state.sort==='name') return a.name_it.localeCompare(b.name_it,'it');
+    if (state.pp) return a._ppRank-b._ppRank || a.name_it.localeCompare(b.name_it,'it');
     return (rank.get(a.category)??99)-(rank.get(b.category)??99) || a.name_it.localeCompare(b.name_it,'it');
   });
+  if (state.pp&&state.sort==='default') {
+    const groups=[[],[],[],[],[]];
+    for (const product of state.filtered) groups[product._ppRank===0?0:product._ppRank===20?1:Math.floor(product._ppRank/100)+1].push(product);
+    state.filtered=Array.from({length:Math.max(...groups.map(group=>group.length))},(_,index)=>groups.map(group=>group[index]).filter(Boolean)).flat();
+  }
   $('products').innerHTML = state.filtered.slice(0,state.limit).map(card).join('');
+  const storeCounts=new Map();
+  for(const product of state.products)if(matches(product,false,true))storeCounts.set(product.store,(storeCounts.get(product.store)||0)+1);
+  $('allStoreCount').textContent=productCount([...storeCounts.values()].reduce((sum,count)=>sum+count,0));
+  for(const store of ['Coop','Conad','Lidl','Eurospin'])$(''+store.toLowerCase()+'Count').textContent=productCount(storeCounts.get(store)||0);
+  $('offerTotalCount').textContent=number(state.products.filter(product=>isDeal(product)&&matches(product,false,false,false,true)).length);
+  $('ppTotalCount').textContent=number(state.products.filter(product=>product._ppRank!=null&&matches(product,false,false,false,true)).length);
   $('emptyState').hidden = !!state.filtered.length;
-  $('emptyState').querySelector('h3').textContent = state.deals ? 'Скидок не найдено' : 'Пока ничего не нашлось';
+  $('emptyState').querySelector('h3').textContent = state.deals ? 'Скидок не найдено' : state.pp ? 'Подходящих товаров не найдено' : 'Пока ничего не нашлось';
   $('emptyState').querySelector('p').textContent = state.deals ? 'В этом разделе или магазине нет опубликованных предложений. Попробуйте другой фильтр.' : 'Попробуйте другое название или откройте все разделы.';
   const categoryName=meta.categories.find(category=>category.id===state.category)?.name;
-  $('categoryTitle').textContent = state.deals ? categoryName ? `Скидки · ${categoryName}` : 'Скидки' : categoryName || 'Все товары';
+  const title=(state.kind&&kinds[state.kind].name)||categoryName||'Все товары';
+  $('categoryTitle').textContent = state.deals ? title==='Все товары'?'Скидки':`Скидки · ${title}` : state.pp ? title==='Все товары'?'ПП':`ПП · ${title}` : title;
   $('scopeLabel').textContent = state.store==='all'?'ВСЕ МАГАЗИНЫ':state.store.toUpperCase();
   $('scopeNote').textContent = state.deals ? 'Акции и цены по карте из открытых каталогов.' : scope[state.store];
   $('resultCount').textContent = productCount(state.filtered.length);
+  $('sortSelect').options[0].textContent=state.pp?'По подборке':'По разделам';
   updatePagination();
-  $('onlyOffers').checked=state.deals;
-  document.querySelectorAll('[data-view]').forEach(button=>{const active=(button.dataset.view==='offers')===state.deals;button.classList.toggle('active',active);button.setAttribute('aria-pressed',active);});
+  renderCharacteristics();
+  document.querySelectorAll('[data-view]').forEach(button=>{const active=button.dataset.view===(state.deals?'offers':state.pp?'pp':'all');button.classList.toggle('active',active);button.setAttribute('aria-pressed',active);});
   document.querySelectorAll('.store-tab').forEach(button=>{const active=button.dataset.store===state.store;button.classList.toggle('active',active);button.setAttribute('aria-pressed',active);});
   renderCategories();syncUrl();
 }
@@ -210,16 +277,25 @@ document.addEventListener('click',event=>{
   const info=event.target.closest('[data-info]');if(info){openInfo(info.dataset.info);return;}
   const favorite=event.target.closest('[data-favorite]');if(favorite){toggleFavorite(favorite.dataset.favorite);return;}
   const open=event.target.closest('[data-open]');if(open){if(open.dataset.open==='favorites')openFavorites();else $('aboutDialog').showModal();return;}
-  const view=event.target.closest('[data-view]');if(view){state.deals=view.dataset.view==='offers';state.category='';render();return;}
-  const store=event.target.closest('[data-store]');if(store){state.store=store.dataset.store;state.category='';render();return;}
-  const category=event.target.closest('[data-category]');if(category){state.category=category.dataset.category;render();return;}
+  const view=event.target.closest('[data-view]');if(view){state.deals=view.dataset.view==='offers';state.pp=view.dataset.view==='pp';render();return;}
+  const store=event.target.closest('[data-store]');if(store){state.store=state.store===store.dataset.store?'all':store.dataset.store;render();return;}
+  const category=event.target.closest('[data-category]');if(category){Object.assign(state,{category:category.dataset.category,kind:'',noSugar:false,lactoseFree:false,sugarMax:'',fatMax:''});render();closeFilters();return;}
+  const kind=event.target.closest('[data-kind]');if(kind){const selected=state.kind===kind.dataset.kind?'':kind.dataset.kind;Object.assign(state,{kind:selected,category:kinds[kind.dataset.kind].category,noSugar:false,lactoseFree:false,sugarMax:'',fatMax:''});render();$('categoryRail').scrollTop=0;if(selected)closeFilters();return;}
 });
+function closeFilters() {const wasOpen=document.body.classList.contains('filters-open');document.body.classList.remove('filters-open');$('filterOverlay').hidden=true;$('openFilters').setAttribute('aria-expanded','false');if(wasOpen)$('openFilters').focus();}
+$('openFilters').addEventListener('click',()=>{document.body.classList.add('filters-open');$('filterOverlay').hidden=false;$('openFilters').setAttribute('aria-expanded','true');$('closeFilters').focus();});
+$('closeFilters').addEventListener('click',closeFilters);
+$('filterOverlay').addEventListener('click',closeFilters);
 $('searchInput').addEventListener('input',event=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>{state.query=event.target.value.trim();render();},160);});
 $('onlyPriced').addEventListener('change',event=>{state.priced=event.target.checked;render();});
-$('onlyOffers').addEventListener('change',event=>{state.deals=event.target.checked;render();});
+$('noSugar').addEventListener('change',event=>{state.noSugar=event.target.checked;render();});
+$('lactoseFree').addEventListener('change',event=>{state.lactoseFree=event.target.checked;render();});
+$('sugarMax').addEventListener('change',event=>{state.sugarMax=event.target.value;render();});
+$('fatMax').addEventListener('change',event=>{state.fatMax=event.target.value;render();});
+$('clearCharacters').addEventListener('click',()=>{Object.assign(state,{noSugar:false,lactoseFree:false,sugarMax:'',fatMax:''});render();});
 $('sortSelect').addEventListener('change',event=>{state.sort=event.target.value;render();});
 $('loadMore').addEventListener('click',showMore);
-$('resetFilters').addEventListener('click',()=>{Object.assign(state,{store:'all',category:'',query:'',priced:true,deals:false,sort:'default'});$('searchInput').value='';$('onlyPriced').checked=true;$('sortSelect').value='default';render();});
+$('resetFilters').addEventListener('click',()=>{Object.assign(state,{store:'all',category:'',query:'',priced:true,deals:false,pp:false,kind:'',noSugar:false,lactoseFree:false,sugarMax:'',fatMax:'',sort:'default'});$('searchInput').value='';$('onlyPriced').checked=true;$('sortSelect').value='default';render();});
 $('closeFavorites').addEventListener('click',closeFavorites);
 $('drawerOverlay').addEventListener('click',closeFavorites);
 $('closeAbout').addEventListener('click',()=>$('aboutDialog').close());
@@ -227,27 +303,29 @@ $('aboutDialog').addEventListener('click',event=>{if(event.target===$('aboutDial
 $('closeInfo').addEventListener('click',()=>$('infoDialog').close());
 $('infoDialog').addEventListener('click',event=>{if(event.target===$('infoDialog'))$('infoDialog').close();});
 $('infoDialog').addEventListener('close',()=>infoFocus?.focus());
-document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('favoritesDrawer').hidden)closeFavorites();});
+document.addEventListener('keydown',event=>{if(event.key==='Escape'){if(!$('favoritesDrawer').hidden)closeFavorites();if(document.body.classList.contains('filters-open'))closeFilters();}});
 
 (async()=>{
   try {
-    const responses=await Promise.all(['meta.json','products.json','lidl-products.json','eurospin-products.json','coop-images.json'].map(path=>fetch(path)));
+    const responses=await Promise.all(['meta.json','products.json','lidl-products.json','eurospin-products.json','coop-images.json','product-attributes.json'].map(path=>fetch(path)));
     if(responses.some(response=>!response.ok))throw new Error('Catalog data unavailable');
-    const [metadata,products,lidlProducts,eurospinProducts,coopImages]=await Promise.all(responses.map(response=>response.json()));
+    const [metadata,products,lidlProducts,eurospinProducts,coopImages,attributes]=await Promise.all(responses.map(response=>response.json()));
     meta=metadata;state.products=[...products,...lidlProducts,...eurospinProducts];
-    state.products.forEach(product=>{if(product.store==='Coop'&&coopImages[product.key]){product.image=coopImages[product.key];product.direct_image=true;}cleanCatalogName(product);product._search=normalize([product.name_it,product.name_ru,product.store].join(' '));map.set(product.key,product);});
+    state.products.forEach(product=>{if(product.store==='Coop'&&coopImages[product.key]){product.image=coopImages[product.key];product.direct_image=true;}product._attributes=attributes[product.key];cleanCatalogName(product);product._ppRank=ppRank(product);product._search=normalize([product.name_it,product.name_ru,product.store].join(' '));map.set(product.key,product);});
     try{const saved=JSON.parse(localStorage.getItem('spesa-viterbo-favorites-v1')||'[]');state.favorites=new Set(Array.isArray(saved)?saved.filter(key=>map.has(key)):[]);}catch{}
     const params=new URLSearchParams(location.search);
     if(['Coop','Conad','Lidl','Eurospin'].includes(params.get('store')))state.store=params.get('store');
     if(meta.categories.some(category=>category.id===params.get('category')))state.category=params.get('category');
     if(['price-asc','price-desc','name'].includes(params.get('sort')))state.sort=params.get('sort');
-    state.deals=params.get('offers')==='1';
+    state.deals=params.get('offers')==='1';state.pp=!state.deals&&params.get('pp')==='1';
+    if(kinds[params.get('kind')]){state.kind=params.get('kind');state.category=kinds[state.kind].category;}
+    if(state.kind==='soda')state.noSugar=params.get('noSugar')==='1';
+    if(state.kind==='milk')state.lactoseFree=params.get('lactoseFree')==='1';
+    if(['0.5','2','5','10'].includes(params.get('sugarMax'))&&['soda','yogurt'].includes(state.kind))state.sugarMax=params.get('sugarMax');
+    if(['0.5','1.5','2','5'].includes(params.get('fatMax'))&&['yogurt','milk'].includes(state.kind))state.fatMax=params.get('fatMax');
     state.query=params.get('q')||'';state.priced=params.get('allPrices')!=='1';
     $('searchInput').value=state.query;$('onlyPriced').checked=state.priced;$('sortSelect').value=state.sort;
     $('totalCount').textContent=productCount(state.products.length);
-    $('allStoreCount').textContent=productCount(state.products.length);
-    $('offerTotalCount').textContent=number(state.products.filter(isDeal).length);
-    for(const store of ['Coop','Conad','Lidl','Eurospin'])$(''+store.toLowerCase()+'Count').textContent=productCount(state.products.filter(product=>product.store===store).length);
     updateFavoriteCount();render();
   } catch(error) {
     console.error(error);

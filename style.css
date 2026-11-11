@@ -178,7 +178,7 @@ summary::-webkit-details-marker{display:none}
 .member-offer>small{width:100%;color:#61744f;font-size:11px;line-height:14px}
 .offer-note{color:#926139;font-size:11px;line-height:16px}
 
-.card-details{position:absolute;inset:0;z-index:2;padding-top:54px;background:#f8fbf4}
+.card-details{position:absolute;inset:0;z-index:2;padding-top:54px;background:#f8fbf4;container-type:inline-size}
 .spec-open .card-heading{position:relative;z-index:3;background:#f8fbf4}
 .spec-open>.card-visual,.spec-open>.product-content,.spec-open>.purchase-row,.spec-open>.price-meta{visibility:hidden}
 .spec-scroll{height:100%;padding:11px 12px;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#b3c6a2 transparent;color:#677b5c;font-size:12px;line-height:1.55;overflow-wrap:anywhere}
@@ -431,6 +431,24 @@ body.filters-open .category-rail{visibility:visible;transform:translateX(0)}
 .price-meta{padding-right:9px;padding-left:9px}
 .unit-price{font-size:10.5px}
 .results-head h1{font-size:23px}
+}
+
+@container (max-width:280px){
+  .spec-scroll{padding:10px;font-size:13px;line-height:1.6}
+  .spec-scroll h4{font-size:14px}
+  .spec-status{font-size:13px}
+  .nutrition-table{display:block;font-size:13px;line-height:1.5}
+  .nutrition-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  .nutrition-table tbody{display:block}
+  .nutrition-table tbody tr{display:block;padding:11px 0;border-bottom:1px solid #e1e9d8}
+  .nutrition-table tbody tr:first-child{padding-top:0}
+  .nutrition-table tbody tr:last-child{padding-bottom:0;border-bottom:0}
+  .nutrition-table tbody th{display:block;padding:0;border:0;color:#36533a;font-weight:600;overflow-wrap:break-word;hyphens:auto}
+  .nutrition-table tbody th:first-child{width:100%}
+  .nutrition-table tbody th:empty{display:none}
+  .nutrition-table tbody td{display:block;padding:7px 0 0;border:0;color:#293f2b;text-align:left;overflow-wrap:break-word;font-variant-numeric:tabular-nums}
+  .nutrition-table tbody td::before{display:block;margin-bottom:2px;color:#73816b;content:attr(data-label);font-size:12px;font-weight:400}
+  .nutrition-table .nutrition-empty{display:none}
 }
 
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}

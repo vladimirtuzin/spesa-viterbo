@@ -123,6 +123,14 @@ with sync_playwright() as p:
     assert abs(panel["height"]-outer["height"])<=2
     assert card.locator(".purchase-row").evaluate("e=>e.inert")
     assert mobile.locator(".nutrition-table").evaluate("e => e.scrollWidth <= e.clientWidth")
+    for width in (320, 390):
+        mobile.set_viewport_size({"width": width, "height": 844})
+        table = card.locator(".nutrition-table")
+        assert table.evaluate("e => getComputedStyle(e).display === 'block'")
+        assert card.locator('.spec-scroll').evaluate("e => e.scrollWidth <= e.clientWidth")
+        assert table.locator('tbody td:not(.nutrition-empty)').evaluate_all("cells => cells.every(e => e.getBoundingClientRect().width >= e.closest('table').getBoundingClientRect().width - 2 && e.dataset.label && parseFloat(getComputedStyle(e).fontSize) >= 13)")
+        assert table.locator('tbody .nutrition-empty').evaluate_all("cells => cells.every(e => !e.getClientRects().length)")
+        assert table.locator('tbody td').count() == sum(len(row)-1 for row in info['nutrition']['rows'] if any(str(v or '').strip() for v in row[1:]))
     card.locator("[data-info]").click()
     assert card.locator(".card-details").is_hidden()
     assert not card.locator(".purchase-row").evaluate("e=>e.inert")

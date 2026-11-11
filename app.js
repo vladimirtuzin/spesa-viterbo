@@ -199,6 +199,10 @@ async function loadProductInfo(key){
   const info=await response.json();infoCache.set(key,info);return info;
 }
 const nutritionLabel=value=>({'energia':'Энергия','grassi':'Жиры','di cui':'Из них','di cui:':'Из них','carboidrati':'Углеводы','proteine':'Белки','fibre':'Клетчатка','sale':'Соль','zuccheri':'Сахар','di cui zuccheri':'Из них сахар','di cui: zuccheri':'Из них сахар','di cui acidi grassi saturi':'Насыщенные жиры','di cui: acidi grassi saturi':'Насыщенные жиры','- acidi grassi saturi':'Насыщенные жиры','acidi grassi saturi':'Насыщенные жиры'})[String(value).toLowerCase().trim()]||value;
+function nutritionBasis(value){
+  const text=String(value??'').trim(),amount=text.match(/\b100\s*(g|ml)\b/i);
+  return amount?`На 100 ${amount[1].toLowerCase()==='g'?'г':'мл'}`:measure(text.replace(/^per\s+porzione\b/i,'На порцию'))||'Значение';
+}
 async function loadCardSpecs(element){
   if(element.dataset.specsLoaded)return;
   const content=element.querySelector('[data-spec-content]');
@@ -209,7 +213,7 @@ async function loadCardSpecs(element){
     if(info.nutrition?.rows?.length){
       const table=info.nutrition;
       const headers=table.headers.map((value,index)=>`<th scope="col">${escapeHtml(index?value:value||'Показатель')}</th>`).join('');
-      const rows=table.rows.filter(row=>row.slice(1).some(value=>String(value??'').trim())).map(row=>`<tr>${row.map((value,index)=>index?`<td>${escapeHtml(value)}</td>`:`<th scope="row">${escapeHtml(nutritionLabel(value))}</th>`).join('')}</tr>`).join('');
+      const rows=table.rows.filter(row=>row.slice(1).some(value=>String(value??'').trim())).map(row=>`<tr>${row.map((value,index)=>index?`<td data-label="${escapeHtml(nutritionBasis(table.headers[index]))}"${String(value??'').trim()?'':' class="nutrition-empty"'}>${escapeHtml(value)}</td>`:`<th scope="row">${escapeHtml(nutritionLabel(value))}</th>`).join('')}</tr>`).join('');
       blocks.push(`<section><h4>Пищевая ценность</h4><table class="nutrition-table"><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table></section>`);
     }
     content.innerHTML=blocks.length?blocks.join(''):`<p class="spec-status">${info.status==='unsupported'?'В каталоге Lidl нет состава и таблицы питания.':'Магазин не вернул состав и пищевую ценность этого товара.'}</p>`;element.dataset.specsLoaded='ready';

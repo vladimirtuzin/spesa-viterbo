@@ -19,6 +19,12 @@ assert pineapple["name_it"] == "Ananas gold Orsero" and pineapple["name_ru"] == 
 quantity_only = {"key": "lidl-everli-536721", "store": "Lidl", "category": "drinks", "name_it": "1,75 l"}
 names.clean_name(quantity_only)
 assert quantity_only["name_it"] == "Pepsi 1,75 l" and "Pepsi" in quantity_only["name_ru"]
+navelina = {"key": "coop-593206", "store": "Coop", "category": "fruit", "name_it": "Arance navelina kg 3"}
+assert names.curated_name(navelina) == "Апельсины «Навелина»"
+assert names.clean_russian_name(navelina, "Навелина апельсины ит 9 и^ втбг кг 3") == "Навелина апельсины 3 кг"
+assert names.clean_russian_name(navelina, "Миндаль es150г") == "Миндаль 150г"
+shade = {"store": "Coop", "category": "care"}
+assert names.clean_russian_name(shade, "Garnier Olia IT 10 Night Black") == "Garnier Olia IT 10 Night Black"
 
 with TemporaryDirectory() as temporary:
     root = Path(temporary)
@@ -36,6 +42,15 @@ with TemporaryDirectory() as temporary:
         assert all(product["name_ru"] for filename in fixtures for product in json.loads((root / filename).read_text(encoding="utf-8")))
         with patch.object(names, "local_translator", side_effect=AssertionError("Saved names must not be translated again")):
             names.refresh_names()
+
+        cached = json.loads((root / "translations-ru.json").read_text(encoding="utf-8"))
+        cached[navelina["name_it"]] = "Навелина апельсины ит 9 и^ втбг кг 3"
+        (root / "translations-ru.json").write_text(json.dumps(cached), encoding="utf-8")
+        coop_file = root / "products.json"
+        coop_file.write_text(json.dumps([navelina]), encoding="utf-8")
+        with patch.object(names, "local_translator", side_effect=AssertionError("Existing translations must be cleaned locally")):
+            names.refresh_names()
+        assert json.loads(coop_file.read_text(encoding="utf-8"))[0]["name_ru"] == "Апельсины «Навелина»"
 
         missing = fixtures["lidl-products.json"][0] | {"name_it": "Nuovo prodotto"}
         target = root / "lidl-products.json"

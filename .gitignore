@@ -8,3 +8,4 @@ __pycache__/
 inspect_tmp.py
 .translation-runtime/
 .translation-models/
+artifacts/

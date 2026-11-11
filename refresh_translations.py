@@ -52,11 +52,41 @@ def clean_name(product):
         return " ".join(text.split())
 
     product["name_it"] = clean(original)
-    product["name_ru"] = re.sub(r"\b(?:бсг?|бтг|втбг|вх|кт|рт|мз)\b\.?", "", clean(product.get("name_ru", "")), flags=re.I).strip()
+    product["name_ru"] = clean_russian_name(product, product.get("name_ru", ""))
     if product["key"] == "coop-1258361":
         product["name_ru"] = "Ананас Gold Orsero"
         return False
     return fresh
+
+
+def clean_russian_name(product, text):
+    if product["store"] != "Coop" or product["category"] in {"care", "cleaning", "home", "clothes", "garden", "pets"}:
+        return " ".join(str(text).split())
+    text = str(text)
+    # Country/calibre codes and roman grades also survive in already translated cache entries.
+    original = text
+    def country_code(match):
+        following = original[match.end():]
+        return match.group(1) if re.match(r"\s*(?:кг|г|kg|g|мл|ml|л|l)\b", following, re.I) else ""
+    text = re.sub(r"\b(?:ит|эт|эс|it|es)\s*(\d+(?:[-/]\d+)*)", country_code, text, flags=re.I)
+    text = re.sub(r"[iиі]{1,3}\s*\^", "", text, flags=re.I)
+    text = re.sub(r"(?<![a-zа-яё])(?:втбг|бтг|втб|бсг?|вх|кт|рт|мз|сф|sf|bs|btg|vtbg|vs|vh|ct|rt|mz|jsk)\.?(?=\s|$|(?:кг|г|kg|g)\b|[.,])", "", text, flags=re.I)
+    text = re.sub(r"\b(?:ит|эт|эс|it|es)\b", "", text, flags=re.I)
+    text = re.sub(r"\b(?:кг|kg)\s*(\d+(?:[.,]\d+)?)\b", r"\1 кг", text, flags=re.I)
+    text = re.sub(r"\b(?:гр|г|g)\s*(\d+(?:[.,]\d+)?)\b", r"\1 г", text, flags=re.I)
+    text = re.sub(r"\b(\d+(?:[-/]\d+)?)\s*(?:fr|фр)\b", r"\1 шт.", text, flags=re.I)
+    return " ".join(text.split()).strip(" ,;·")
+
+
+def curated_name(product):
+    fix = SOURCE_NAME_FIXES.get(product["key"])
+    if fix and product["name_it"] == fix[1]:
+        return fix[2]
+    if product["store"] == "Coop" and re.search(r"\baranc[ae]\b.*\bnavelina\b", product["name_it"], re.I):
+        return "Апельсины «Навелина»"
+    if product["key"] == "coop-1258361":
+        return "Ананас Gold Orsero"
+    return None
 
 
 def write_json(path, value):
@@ -138,12 +168,16 @@ def refresh_names():
     pending = set()
     for products in catalogs.values():
         for product in products:
-            regenerate = clean_name(product)
+            original = product["name_it"].strip()
+            clean_name(product)
             source = product["name_it"].strip()
-            existing = product.get("name_ru", "").strip()
-            if existing and not regenerate:
-                cache.setdefault(source, existing)
-            elif source not in cache:
+            existing = cache.get(source, cache.get(original, product.get("name_ru", "")))
+            existing = curated_name(product) or clean_russian_name(product, existing)
+            if existing:
+                cache[source] = existing
+                if original != source and original in cache:
+                    cache[original] = existing
+            else:
                 pending.add(source)
     print("Russian names to translate:", len(pending), flush=True)
     if pending:
@@ -160,7 +194,7 @@ def refresh_names():
     write_json(cache_path, dict(sorted(cache.items())))
     for filename, products in catalogs.items():
         for product in products:
-            product["name_ru"] = cache[product["name_it"].strip()]
+            product["name_ru"] = curated_name(product) or clean_russian_name(product, cache[product["name_it"].strip()])
         write_json(ROOT / filename, products)
     print("Russian names available:", sum(len(products) for products in catalogs.values()), flush=True)
 

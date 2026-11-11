@@ -9,3 +9,4 @@ inspect_tmp.py
 .translation-runtime/
 .translation-models/
 artifacts/
+.runtime-info/

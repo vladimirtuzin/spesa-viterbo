@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/info.py": {
+      "maxDuration": 30,
+      "excludeFiles": "{assets/**,artifacts/**,.translation-models/**,.translation-runtime/**,.runtime-info/**,*.tmp,verify_*.py}"
+    }
+  }
+}

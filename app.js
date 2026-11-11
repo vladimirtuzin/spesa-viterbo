@@ -22,8 +22,8 @@ function imageMarkup(product,small=false){
 function card(product){
   const key=escapeHtml(product.key),name=escapeHtml(product.name_ru||product.name_it);
   const note=product.member_price?`<div class="member-offer">С картой Coop <strong>${euro(product.member_price)}</strong></div>`:isDeal(product)&&product.note?`<div class="offer-note">${escapeHtml(product.note)}</div>`:'';
-  const infoButton=product._hasInfo?`<button class="info-button" type="button" data-info="${key}" aria-label="Состав и пищевая ценность: ${name}" aria-expanded="false" aria-controls="spec-${key}" title="Состав и пищевая ценность">${infoIcon}</button>`:'';
-  const details=product._hasInfo?`<section class="card-details" id="spec-${key}" aria-label="Состав и пищевая ценность" hidden><div class="spec-scroll" tabindex="0" data-spec-content></div></section>`:'';
+  const infoButton=`<button class="info-button" type="button" data-info="${key}" aria-label="Состав и пищевая ценность: ${name}" aria-expanded="false" aria-controls="spec-${key}" title="Состав и пищевая ценность">${infoIcon}</button>`;
+  const details=`<section class="card-details" id="spec-${key}" aria-label="Состав и пищевая ценность" hidden><div class="spec-scroll" tabindex="0" data-spec-content></div></section>`;
   return `<article class="product-card" data-key="${key}" tabindex="-1" aria-label="${name}"><div class="card-heading"><span class="card-store store-${product.store.toLowerCase()}"><img src="assets/store-icons/${storeIcons[product.store]}" alt=""><span>${escapeHtml(product.store)}</span></span>${infoButton}</div><div class="card-visual"><div class="product-media">${imageMarkup(product)}</div>${details}</div><div class="product-content"><h3 class="product-name" lang="ru" title="${name}">${name}</h3><p class="pack">${escapeHtml(product.pack||'')}</p></div><div class="card-bottom"><div class="price-block"><span class="price ${hasPrice(product)?'':'unpriced'}">${hasPrice(product)?euro(product.price):'Нет цены'}</span>${product.unit_price?`<span class="unit-price">${escapeHtml(product.unit_price)}</span>`:''}${note}</div><div class="cart-card-control" data-cart-control="${key}">${cartControl(product)}</div></div></article>`;
 }
 function cartControl(product){
@@ -137,11 +137,19 @@ function render(){
   document.querySelectorAll('.store-tab').forEach(button=>{const active=button.dataset.store===state.store;button.classList.toggle('active',active);button.setAttribute('aria-pressed',active);});renderCategories();syncUrl();
 }
 function showToast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>$('toast').hidden=true,2400);}
-async function savedProductInfo(key){
+async function loadProductInfo(key){
   if(infoCache.has(key))return infoCache.get(key);
-  const shard=(Number(key.match(/\d+$/)[0])%64).toString(16).padStart(2,'0');
-  if(!infoShards.has(shard))infoShards.set(shard,fetch(`data/product-info/${shard}.json?v=${infoIndex.version}`).then(response=>{if(!response.ok)throw new Error('Saved product info unavailable');return response.json();}).catch(error=>{infoShards.delete(shard);throw error;}));
-  const entry=(await infoShards.get(shard))[key];if(!entry?.info)throw new Error('Saved product info missing');infoCache.set(key,entry.info);return entry.info;
+  if(map.get(key)?._hasInfo){
+    const shard=(Number(key.match(/\d+$/)[0])%64).toString(16).padStart(2,'0');
+    try{
+      if(!infoShards.has(shard))infoShards.set(shard,fetch(`data/product-info/${shard}.json?v=${infoIndex.version}`).then(response=>{if(!response.ok)throw new Error('Saved product info unavailable');return response.json();}).catch(error=>{infoShards.delete(shard);throw error;}));
+      const entry=(await infoShards.get(shard))[key];
+      if(entry?.info){infoCache.set(key,entry.info);return entry.info;}
+    }catch{} // A missing snapshot must not prevent the server from loading the label.
+  }
+  const response=await fetch(`api/info?key=${encodeURIComponent(key)}`);
+  if(!response.ok)throw new Error('Product info unavailable');
+  const info=await response.json();infoCache.set(key,info);return info;
 }
 const nutritionLabel=value=>({'energia':'Энергия','grassi':'Жиры','di cui':'Из них','di cui:':'Из них','carboidrati':'Углеводы','proteine':'Белки','fibre':'Клетчатка','sale':'Соль','zuccheri':'Сахар','di cui zuccheri':'Из них сахар','di cui: zuccheri':'Из них сахар','di cui acidi grassi saturi':'Насыщенные жиры','di cui: acidi grassi saturi':'Насыщенные жиры','- acidi grassi saturi':'Насыщенные жиры','acidi grassi saturi':'Насыщенные жиры'})[String(value).toLowerCase().trim()]||value;
 async function loadCardSpecs(element){
@@ -149,7 +157,7 @@ async function loadCardSpecs(element){
   const content=element.querySelector('[data-spec-content]');
   content.innerHTML='<p class="spec-status" role="status">Загружаем состав…</p>';element.dataset.specsLoaded='loading';
   try{
-    const info=await savedProductInfo(element.dataset.key),blocks=[];
+    const info=await loadProductInfo(element.dataset.key),blocks=[];
     if(info.ingredients||info.allergens)blocks.push(`<section><h4>Состав</h4>${info.ingredients?`<p lang="it">${escapeHtml(info.ingredients).replace(/\n/g,'<br>')}</p>`:''}${info.allergens?`<p class="ingredients-allergens" lang="it"><strong lang="ru">Аллергены:</strong> ${escapeHtml(info.allergens).replace(/\n/g,'<br>')}</p>`:''}</section>`);
     if(info.nutrition?.rows?.length){
       const table=info.nutrition;
@@ -157,7 +165,7 @@ async function loadCardSpecs(element){
       const rows=table.rows.filter(row=>row.slice(1).some(value=>String(value??'').trim())).map(row=>`<tr>${row.map((value,index)=>index?`<td>${escapeHtml(value)}</td>`:`<th scope="row">${escapeHtml(nutritionLabel(value))}</th>`).join('')}</tr>`).join('');
       blocks.push(`<section><h4>Пищевая ценность</h4><table class="nutrition-table"><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table></section>`);
     }
-    content.innerHTML=blocks.join('');element.dataset.specsLoaded='ready';
+    content.innerHTML=blocks.length?blocks.join(''):`<p class="spec-status">${info.status==='unsupported'?'В каталоге Lidl нет состава и таблицы питания.':'Магазин не вернул состав и пищевую ценность этого товара.'}</p>`;element.dataset.specsLoaded='ready';
   }catch{content.innerHTML='<p class="spec-status">Не удалось загрузить состав. <button type="button" class="text-button" data-retry-info>Повторить</button></p>';delete element.dataset.specsLoaded;}
 }
 function showSpecs(element,open){element.classList.toggle('spec-open',open);element.querySelector('.card-details').hidden=!open;element.querySelector('[data-info]').setAttribute('aria-expanded',open);element.querySelector('.product-media').setAttribute('aria-hidden',open);if(open)loadCardSpecs(element);}

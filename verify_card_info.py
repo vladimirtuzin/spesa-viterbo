@@ -75,13 +75,31 @@ with sync_playwright() as p:
     page.route(f"**/data/product-info/{shard}.json?*", lambda route: route.fulfill(status=503), times=1)
     card = opened_card(page)
     card.locator("[data-info]").click()
-    card.locator("[data-retry-info]").click()
     ready(page)
 
     page.goto(BASE, wait_until="domcontentloaded")
     page.wait_for_selector(".product-card")
-    assert page.evaluate("[...document.querySelectorAll('.product-card')].every(e => !!e.querySelector('[data-info]') === map.get(e.dataset.key)._hasInfo)")
-    assert page.evaluate("[...document.querySelectorAll('.product-card')].some(e => !e.querySelector('[data-info]'))")
+    assert page.locator("[data-info]").count() == page.locator(".product-card").count()
+    missing = page.evaluate("state.products.find(p => p.store === 'Coop' && !p._hasInfo)")
+    requests_seen = []
+    page.on("request", lambda request: requests_seen.append(request.url) if "/api/info?" in request.url else None)
+    missing_url = BASE + "?" + urlencode({"store": "Coop", "q": missing["name_it"]})
+    page.goto(missing_url, wait_until="domcontentloaded")
+    missing_card = page.locator(f'.product-card[data-key="{missing["key"]}"]')
+    missing_card.hover()
+    page.wait_for_timeout(500)
+    assert not requests_seen
+    endpoint = f'**/api/info?key={missing["key"]}'
+    payload = {"ingredients": "Test ingredient", "nutrition": {"headers": ["", "100 g"], "rows": [["Energia", "100 kJ"]]}}
+    page.route(endpoint, lambda route: route.fulfill(content_type="application/json", body=json.dumps(payload)))
+    page.route(endpoint, lambda route: route.fulfill(status=503), times=1)
+    missing_card.locator("[data-info]").click()
+    missing_card.locator("[data-retry-info]").click()
+    page.wait_for_function("key => document.querySelector(`[data-key=\"${key}\"]`).dataset.specsLoaded === 'ready'", arg=missing["key"])
+    assert missing_card.locator(".nutrition-table").count() == 1 and len(requests_seen) == 2
+    missing_card.locator("[data-info]").click()
+    missing_card.locator("[data-info]").click()
+    assert len(requests_seen) == 2
     for width in (320, 390, 900, 1440):
         page.set_viewport_size({"width": width, "height": 900})
         assert not page.evaluate("document.documentElement.scrollWidth > innerWidth")

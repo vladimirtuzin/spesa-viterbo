@@ -22,7 +22,9 @@ function imageMarkup(product,small=false){
 function card(product){
   const key=escapeHtml(product.key),name=escapeHtml(product.name_ru||product.name_it);
   const note=product.member_price?`<div class="member-offer">С картой Coop <strong>${euro(product.member_price)}</strong></div>`:isDeal(product)&&product.note?`<div class="offer-note">${escapeHtml(product.note)}</div>`:'';
-  return `<article class="product-card" data-key="${key}" aria-label="${name}"><div class="card-heading"><span class="card-store store-${product.store.toLowerCase()}"><img src="assets/store-icons/${storeIcons[product.store]}" alt=""><span>${escapeHtml(product.store)}</span></span><button class="info-button" type="button" data-info="${key}" aria-label="Характеристики: ${name}" aria-expanded="false" aria-controls="spec-${key}" title="Состав и характеристики">${infoIcon}</button></div><div class="card-visual"><div class="product-media">${imageMarkup(product)}</div><section class="card-details" id="spec-${key}" aria-label="Характеристики товара" hidden><div class="spec-scroll" tabindex="0" data-spec-content></div></section></div><div class="product-content"><h3 class="product-name" lang="ru" title="${name}">${name}</h3><p class="pack">${escapeHtml(product.pack||'')}</p></div><div class="card-bottom"><div class="price-block"><span class="price ${hasPrice(product)?'':'unpriced'}">${hasPrice(product)?euro(product.price):'Нет цены'}</span>${product.unit_price?`<span class="unit-price">${escapeHtml(product.unit_price)}</span>`:''}${note}</div><div class="cart-card-control" data-cart-control="${key}">${cartControl(product)}</div></div></article>`;
+  const infoButton=product._hasInfo?`<button class="info-button" type="button" data-info="${key}" aria-label="Состав и пищевая ценность: ${name}" aria-expanded="false" aria-controls="spec-${key}" title="Состав и пищевая ценность">${infoIcon}</button>`:'';
+  const details=product._hasInfo?`<section class="card-details" id="spec-${key}" aria-label="Состав и пищевая ценность" hidden><div class="spec-scroll" tabindex="0" data-spec-content></div></section>`:'';
+  return `<article class="product-card" data-key="${key}" tabindex="-1" aria-label="${name}"><div class="card-heading"><span class="card-store store-${product.store.toLowerCase()}"><img src="assets/store-icons/${storeIcons[product.store]}" alt=""><span>${escapeHtml(product.store)}</span></span>${infoButton}</div><div class="card-visual"><div class="product-media">${imageMarkup(product)}</div>${details}</div><div class="product-content"><h3 class="product-name" lang="ru" title="${name}">${name}</h3><p class="pack">${escapeHtml(product.pack||'')}</p></div><div class="card-bottom"><div class="price-block"><span class="price ${hasPrice(product)?'':'unpriced'}">${hasPrice(product)?euro(product.price):'Нет цены'}</span>${product.unit_price?`<span class="unit-price">${escapeHtml(product.unit_price)}</span>`:''}${note}</div><div class="cart-card-control" data-cart-control="${key}">${cartControl(product)}</div></div></article>`;
 }
 function cartControl(product){
   const key=escapeHtml(product.key),quantity=state.cart.get(product.key)||0;
@@ -97,7 +99,7 @@ function updatePagination(){
   $('pageProgress').style.width=total?`${shown/total*100}%`:'0%';$('loadMore').hidden=shown>=total;
   if(shown<total)$('loadMore').innerHTML=`Показать ещё ${productCount(Math.min(40,total-shown))} <span>Страница ${Math.floor(shown/40)+1} ↓</span>`;
 }
-function showMore(event){const start=state.limit;state.limit+=40;$('products').insertAdjacentHTML('beforeend',state.filtered.slice(start,state.limit).map(card).join(''));updatePagination();if(event?.detail===0)$('products').children[start]?.querySelector('[data-info]')?.focus({preventScroll:true});}
+function showMore(event){const start=state.limit;state.limit+=40;$('products').insertAdjacentHTML('beforeend',state.filtered.slice(start,state.limit).map(card).join(''));updatePagination();if(event?.detail===0){const first=$('products').children[start];(first?.querySelector('button:not(:disabled)')||first)?.focus({preventScroll:true});}}
 function renderCharacteristics(){
   const eligible=state.products.filter(product=>matches(product,{ignoreAttributes:true}));
   const sugar=eligible.some(p=>p._attributes?.sugar_g!=null)||!!state.sugarMax,fat=eligible.some(p=>p._attributes?.fat_g!=null)||!!state.fatMax,noSugar=eligible.some(p=>p._attributes?.sugar_free)||state.noSugar,lactose=eligible.some(p=>p._attributes?.lactose_free)||state.lactoseFree;
@@ -141,32 +143,24 @@ async function savedProductInfo(key){
   if(!infoShards.has(shard))infoShards.set(shard,fetch(`data/product-info/${shard}.json?v=${infoIndex.version}`).then(response=>{if(!response.ok)throw new Error('Saved product info unavailable');return response.json();}).catch(error=>{infoShards.delete(shard);throw error;}));
   const entry=(await infoShards.get(shard))[key];if(!entry?.info)throw new Error('Saved product info missing');infoCache.set(key,entry.info);return entry.info;
 }
-function basicSpecs(product){
-  const a=product._attributes||{},rows=[],basis=product.category==='drinks'||a.kind==='milk'?'100 мл':'100 г';
-  if(product.pack)rows.push(['Фасовка',product.pack]);if(a.sugar_free)rows.push(['Сахар','Без сахара']);if(a.lactose_free)rows.push(['Лактоза','Без лактозы']);
-  if(a.sugar_g!=null)rows.push([`Сахар / ${basis}`,`${a.sugar_g.toLocaleString('ru')} г`]);if(a.fat_g!=null)rows.push([`Жиры / ${basis}`,`${a.fat_g.toLocaleString('ru')} г`]);
-  if(product.note)rows.push(['Условия цены',product.note]);
-  if(product.date_to)rows.push(['Предложение до',product.date_to]);
-  if(!rows.length)return '';
-  return `<section><h4>Характеристики</h4><dl>${rows.map(([label,value])=>`<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join('')}</dl></section>`;
-}
 const nutritionLabel=value=>({'energia':'Энергия','grassi':'Жиры','di cui':'Из них','di cui:':'Из них','carboidrati':'Углеводы','proteine':'Белки','fibre':'Клетчатка','sale':'Соль','zuccheri':'Сахар','di cui zuccheri':'Из них сахар','di cui: zuccheri':'Из них сахар','di cui acidi grassi saturi':'Насыщенные жиры','di cui: acidi grassi saturi':'Насыщенные жиры','- acidi grassi saturi':'Насыщенные жиры','acidi grassi saturi':'Насыщенные жиры'})[String(value).toLowerCase().trim()]||value;
 async function loadCardSpecs(element){
   if(element.dataset.specsLoaded)return;
-  const product=map.get(element.dataset.key),content=element.querySelector('[data-spec-content]'),original=`<section class="original-name"><h4>Название в каталоге</h4><p lang="it">${escapeHtml(product.name_it)}</p></section>`;
-  content.innerHTML=basicSpecs(product)+(product._hasInfo?'<p class="spec-status">Загружаем состав…</p>':'<p class="spec-status">Состав и пищевая ценность пока не опубликованы в каталоге.</p>')+original;element.dataset.specsLoaded='loading';
-  if(!product._hasInfo){element.dataset.specsLoaded='ready';return;}
+  const content=element.querySelector('[data-spec-content]');
+  content.innerHTML='<p class="spec-status" role="status">Загружаем состав…</p>';element.dataset.specsLoaded='loading';
   try{
-    const info=await savedProductInfo(product.key),blocks=[];
-    if(info.nutrition?.rows?.length)blocks.push(`<section><h4>Пищевая ценность</h4><p class="spec-basis">${escapeHtml(info.nutrition.headers[1]||'')}</p><dl>${info.nutrition.rows.filter(row=>row[1]).map(row=>`<div><dt>${escapeHtml(nutritionLabel(row[0]))}</dt><dd>${escapeHtml(row[1])}</dd></div>`).join('')}</dl></section>`);
-    if(info.ingredients)blocks.push(`<section><h4>Состав</h4><p lang="it">${escapeHtml(info.ingredients).replace(/\n/g,'<br>')}</p></section>`);if(info.allergens)blocks.push(`<section><h4>Аллергены</h4><p lang="it">${escapeHtml(info.allergens)}</p></section>`);
-    content.innerHTML=blocks.join('')+basicSpecs(product)+original;element.dataset.specsLoaded='ready';
-  }catch{content.querySelector('.spec-status').innerHTML='Не удалось открыть сохранённый состав. <button type="button" class="text-button" data-retry-info>Повторить</button>';delete element.dataset.specsLoaded;}
+    const info=await savedProductInfo(element.dataset.key),blocks=[];
+    if(info.ingredients||info.allergens)blocks.push(`<section><h4>Состав</h4>${info.ingredients?`<p lang="it">${escapeHtml(info.ingredients).replace(/\n/g,'<br>')}</p>`:''}${info.allergens?`<p class="ingredients-allergens" lang="it"><strong lang="ru">Аллергены:</strong> ${escapeHtml(info.allergens).replace(/\n/g,'<br>')}</p>`:''}</section>`);
+    if(info.nutrition?.rows?.length){
+      const table=info.nutrition;
+      const headers=table.headers.map((value,index)=>`<th scope="col">${escapeHtml(index?value:value||'Показатель')}</th>`).join('');
+      const rows=table.rows.filter(row=>row.slice(1).some(value=>String(value??'').trim())).map(row=>`<tr>${row.map((value,index)=>index?`<td>${escapeHtml(value)}</td>`:`<th scope="row">${escapeHtml(nutritionLabel(value))}</th>`).join('')}</tr>`).join('');
+      blocks.push(`<section><h4>Пищевая ценность</h4><table class="nutrition-table"><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table></section>`);
+    }
+    content.innerHTML=blocks.join('');element.dataset.specsLoaded='ready';
+  }catch{content.innerHTML='<p class="spec-status">Не удалось загрузить состав. <button type="button" class="text-button" data-retry-info>Повторить</button></p>';delete element.dataset.specsLoaded;}
 }
 function showSpecs(element,open){element.classList.toggle('spec-open',open);element.querySelector('.card-details').hidden=!open;element.querySelector('[data-info]').setAttribute('aria-expanded',open);element.querySelector('.product-media').setAttribute('aria-hidden',open);if(open)loadCardSpecs(element);}
-const hoverCards=matchMedia('(hover:hover) and (pointer:fine)');
-$('products').addEventListener('pointerover',event=>{const card=event.target.closest('.product-card');if(!hoverCards.matches||!card||card.contains(event.relatedTarget)||card.dataset.dismissed)return;card.previewTimer=setTimeout(()=>{if(card.isConnected)showSpecs(card,true);},220);});
-$('products').addEventListener('pointerout',event=>{const card=event.target.closest('.product-card');if(!card||card.contains(event.relatedTarget))return;clearTimeout(card.previewTimer);delete card.dataset.dismissed;if(!card.classList.contains('spec-pinned'))showSpecs(card,false);});
 function openDrawer(){lastFocus=document.activeElement;closeFilters(false);renderCart();$('drawerOverlay').hidden=false;$('cartDrawer').hidden=false;document.body.style.overflow='hidden';$('closeCart').focus();}
 function closeDrawer(){$('drawerOverlay').hidden=true;$('cartDrawer').hidden=true;document.body.style.overflow='';if(lastFocus?.isConnected)lastFocus.focus();else document.querySelector('.cart-trigger').focus();}
 function selectCategory(category,subcategory=''){Object.assign(state,{category,subcategory,noSugar:false,lactoseFree:false,sugarMax:'',fatMax:''});render();}
@@ -174,7 +168,7 @@ document.addEventListener('click',event=>{
   const add=event.target.closest('[data-add-cart]');if(add){if(setCartQuantity(add.dataset.addCart,(state.cart.get(add.dataset.addCart)||0)+1))showToast('Добавлено в кошик');return;}
   const change=event.target.closest('[data-cart-change]');if(change){setCartQuantity(change.dataset.cartChange,(state.cart.get(change.dataset.cartChange)||0)+Number(change.dataset.delta));return;}
   const remove=event.target.closest('[data-cart-remove]');if(remove){setCartQuantity(remove.dataset.cartRemove,0);return;}
-  const info=event.target.closest('[data-info]');if(info){const card=info.closest('.product-card'),open=!card.classList.contains('spec-pinned');clearTimeout(card.previewTimer);card.classList.toggle('spec-pinned',open);if(!open)card.dataset.dismissed='1';showSpecs(card,open);return;}
+  const info=event.target.closest('[data-info]');if(info){const card=info.closest('.product-card');showSpecs(card,!card.classList.contains('spec-open'));return;}
   const retry=event.target.closest('[data-retry-info]');if(retry){loadCardSpecs(retry.closest('.product-card'));return;}
   const open=event.target.closest('[data-open]');if(open){if(open.dataset.open==='cart')openDrawer();else $('aboutDialog').showModal();return;}
   const view=event.target.closest('[data-view]');if(view){state.deals=view.dataset.view==='offers';state.pp=view.dataset.view==='pp';render();return;}
@@ -198,7 +192,7 @@ $('closeCart').addEventListener('click',closeDrawer);$('drawerOverlay').addEvent
 document.addEventListener('keydown',event=>{
   if(event.key==='Escape'){
     if(!$('cartDrawer').hidden)closeDrawer();if(document.body.classList.contains('filters-open'))closeFilters();
-    document.querySelectorAll('.product-card.spec-open').forEach(card=>{card.classList.remove('spec-pinned');card.dataset.dismissed='1';if(card.querySelector('.card-details').contains(document.activeElement))card.querySelector('[data-info]').focus();showSpecs(card,false);});
+    document.querySelectorAll('.product-card.spec-open').forEach(card=>{if(card.querySelector('.card-details').contains(document.activeElement))card.querySelector('[data-info]').focus();showSpecs(card,false);});
   }
   if(event.key==='Tab'){
     const panel=document.body.classList.contains('filters-open')?$('categoryRail'):!$('cartDrawer').hidden?$('cartDrawer'):null;if(!panel)return;

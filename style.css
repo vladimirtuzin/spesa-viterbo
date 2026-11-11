@@ -118,13 +118,12 @@ summary{list-style:none}summary::-webkit-details-marker{display:none}
 .spec-scroll section:last-child{margin-bottom:1px}
 .spec-scroll h4{margin:0 0 7px;color:#253b2e;font-size:14px;font-weight:600}
 .spec-scroll p{margin:0}
-.spec-scroll .spec-basis{margin-bottom:6px;color:#727e76;font-size:12px}
-.spec-scroll dl{margin:0}
-.spec-scroll dl>div{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:5px 0;border-bottom:1px solid #e9eeeb}
-.spec-scroll dt{min-width:0}
-.spec-scroll dd{max-width:110px;margin:0;color:#293c30;text-align:right}
+.nutrition-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12px;line-height:1.45}
+.nutrition-table th,.nutrition-table td{padding:6px 4px;border:1px solid #e0e8e3;vertical-align:top;overflow-wrap:anywhere}
+.nutrition-table th{font-weight:400;text-align:left}.nutrition-table td{text-align:right;color:#293c30}
+.nutrition-table th:first-child{width:44%}.nutrition-table thead th{background:#f0f6f2;font-size:11px;color:#4e6958}
+.spec-scroll .ingredients-allergens{margin-top:9px}.ingredients-allergens strong{font-weight:600}
 .spec-scroll .spec-status{margin-bottom:15px;color:#768278;font-size:12px}
-.original-name p{font-size:12px}
 .product-content{padding:10px 13px 12px}
 .product-name{display:-webkit-box;min-height:44px;max-height:44px;margin:0;overflow:hidden;font-size:16px;font-weight:400;line-height:22px;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}
 .pack{margin:6px 0 0;color:#758078;font-size:14px;line-height:18px}
@@ -199,7 +198,7 @@ dialog{max-height:calc(100dvh - 40px);padding:0;border:0;border-radius:12px;back
  .card-visual{height:155px;margin-top:4px}.photo-window.direct{padding:9px 11px 6px}.product-media .photo-window:not(.direct){width:145px;height:145px}
  .product-content{padding:9px 10px 10px}.product-name{min-height:42px;max-height:42px;font-size:15px;line-height:21px}.pack{margin-top:5px;font-size:13px;line-height:17px}.card-bottom{padding:0 10px 10px}.price-block{min-height:49px}.price{font-size:25px;line-height:31px}.price.unpriced{font-size:17px}.unit-price{font-size:13px;line-height:17px}.member-offer{gap:1px 4px;font-size:11px;line-height:17px}.member-offer strong{font-size:14px}.offer-note{font-size:11px}
  .cart-card-control{margin-top:9px}.add-cart{gap:5px;min-height:39px;padding:8px 4px;font-size:12.5px;line-height:20px}.add-cart svg{width:16px;height:16px}.card-quantity{min-height:39px}.card-quantity button{min-width:29px;padding:6px}.card-quantity .quantity-status{font-size:11px}
- .spec-scroll{padding:9px 10px;font-size:12px}.spec-scroll h4{font-size:13px}.spec-scroll dd{max-width:83px}.spec-scroll dl>div{gap:5px;padding:4px 0}.spec-scroll .spec-basis,.spec-scroll .spec-status,.original-name p{font-size:11.5px}
+ .spec-scroll{padding:9px 10px;font-size:12px}.spec-scroll h4{font-size:13px}.nutrition-table{font-size:11.5px}.nutrition-table th,.nutrition-table td{padding:5px 3px}.nutrition-table thead th{font-size:10.5px}.spec-scroll .spec-status{font-size:11.5px}
  .site-footer{display:block;padding:22px 0}.site-footer p{margin:12px 0}.drawer-heading,.dialog-heading{padding:23px 19px 14px}.drawer-intro{padding:0 19px 16px}.cart-items{padding:0 19px 22px}.cart-item{gap:9px}.cart-item-body>strong{font-size:13px}.cart-item-bottom{gap:8px}.cart-footer{padding:18px 19px}.about-body{padding:0 19px 25px}
 }
 @media(max-width:360px){.page-shell{padding-right:9px;padding-left:9px}.store-tabs{margin-right:-9px;margin-left:-9px;padding-right:9px;padding-left:9px}.header-inner{padding-right:11px;padding-left:11px}.brand{font-size:21px}.cart-trigger{gap:6px}.quick-views{gap:10px}.quick-view{font-size:13px}.quick-view span{font-size:10px}.product-grid{gap:7px}.card-heading{padding-right:6px;padding-left:6px}.card-store{gap:3px;padding-right:4px;font-size:11px}.card-store img{width:19px;height:19px}.card-visual{height:137px}.product-media .photo-window:not(.direct){width:132px;height:132px}.product-content{padding-right:8px;padding-left:8px}.product-name{font-size:14px}.card-bottom{padding-right:8px;padding-left:8px}.add-cart{gap:3px;font-size:11.5px}.add-cart svg{width:14px;height:14px}.price{font-size:23px}.results-head h1{font-size:21px}}

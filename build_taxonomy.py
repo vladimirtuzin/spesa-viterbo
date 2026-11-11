@@ -280,7 +280,7 @@ def build():
         taxonomy.append({"id": parent, "children": children})
         category["count"] = sum(p["category"] == parent for p in products)
     metadata["count"] = len(products)
-    metadata["translation"] = "Названия переведены на русский; оригинал доступен в характеристиках."
+    metadata["translation"] = "Названия переведены на русский; оригинал сохранён для поиска."
     for store in {p["store"] for p in products}:
         items = [p for p in products if p["store"] == store]
         metadata.setdefault("shops", {}).setdefault(store.lower(), {}).update(name=store, count=len(items), prices=sum(bool(p.get("price")) for p in items))

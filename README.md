@@ -14,17 +14,20 @@ python local_preview.py
 
 Откройте `http://localhost:5173/`.
 
-Проверка сохранения и восстановления данных без сети: `python verify_cache.py`. Проверка публичных источников: `python verify_info.py` (для этих команд нужны зависимости из `requirements.txt`).
+Проверки без сети: `python verify_cache.py` и `python verify_names.py`. Проверка публичных источников: `python verify_info.py` (для этих команд нужны зависимости из `requirements.txt`).
 
 ## Обновление каталога
 
 ```bash
-python -m pip install -r requirements.txt
+python -m pip install -r requirements-translation.txt
 python sync_catalog.py
+python refresh_translations.py
 python refresh_attributes.py --limit 750 --max-seconds 600
 ```
 
 GitHub Actions ежедневно в 03:17 UTC обновляет каталог, изображения и сохранённые характеристики (до 750 проверок, максимум 10 минут на состав), затем коммитит изменившиеся данные. Обновление можно запустить вручную в Actions → Refresh catalog → Run workflow. Для Vercel достаточно статической публикации без команды сборки и Python Function.
+
+Русские названия сохраняются в `name_ru` каждого товара и в `translations-ru.json`. Перед переводом скрипт удаляет служебные коды Coop. Существующие переводы используются повторно, новые названия переводятся локальными [моделями Argos](https://github.com/argosopentech/argospm-index) через CTranslate2. Модели загружаются один раз в `.translation-models/`, кэшируются в GitHub Actions и не публикуются с сайтом. При открытии каталога перевод не выполняется; неудачное обновление не публикует неполный набор названий.
 
 `product-info-index.json` перечисляет готовые карточки и содержит версию снимка. Полный состав, аллергены и таблицы питания хранятся в 64 небольших файлах `data/product-info/*.json`; нужный файл загружается с того же сайта и повторно используется браузером. Индекс `product-attributes.json` строится из этих же данных и используется для фильтров. `product_sources.py` обращается к Coop, Conad и Eurospin только во время фонового обновления.
 

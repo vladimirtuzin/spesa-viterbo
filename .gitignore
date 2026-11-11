@@ -6,3 +6,5 @@ __pycache__/
 *-core.js
 *-category.js
 inspect_tmp.py
+.translation-runtime/
+.translation-models/

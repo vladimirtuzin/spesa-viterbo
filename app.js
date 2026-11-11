@@ -6,28 +6,6 @@ const number = value => new Intl.NumberFormat('ru-RU').format(value);
 const productCount = value => `${number(value)} ${({one:'товар',few:'товара',many:'товаров'})[new Intl.PluralRules('ru').select(value)]}`;
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const normalize = value => String(value ?? '').normalize('NFKD').replace(/\p{Diacritic}/gu,'').toLowerCase();
-function cleanCatalogName(product) {
-  if (product.store !== 'Coop') return;
-  const original = product.name_it;
-  const freshCodes = !['care','cleaning','home','clothes','garden','pets'].includes(product.category) &&
-    /\b(?:es|it)\s+\d+(?:[-/]\d+|\+)?(?=\s|$|i{1,2}\^)|\bi{1,2}\^|\bsf\b/i.test(original);
-  const packageCodes = /\b(?:bs|btg|vtbg|vs|vh|ct|rt|mz|jsk)\b/i;
-  if (!freshCodes && !packageCodes.test(original) && !/f\.lli\s+orsero/i.test(original)) return;
-  const clean = name => {
-    let result = name.replace(/\bf\.lli\s+orsero\b/gi, 'Orsero');
-    if (freshCodes) result = result
-      .replace(/\b(?:es|it)\s+\d+(?:[-/]\d+|\+)?(?=\s|$|i{1,2}\^)/gi, '')
-      .replace(/\b(?:es|it)\s+(?=i{1,2}\^)/gi, '')
-      .replace(/\bi{1,2}\^/gi, '')
-      .replace(/\b(?:es|it)(?=\s+(?:bs|btg|vtbg|vs|vh|ct|rt|mz|jsk)\b)/gi, '');
-    return result.replace(/\b(?:sf|bs|btg|vtbg|vs|vh|ct|rt|mz|jsk)\b\.?/gi, '')
-      .replace(/\s+/g, ' ').trim();
-  };
-  product.name_it = clean(original);
-  product.name_ru = product.key === 'coop-1258361' ? 'Ананас Gold Orsero' : freshCodes ? '' : clean(product.name_ru || '')
-    .replace(/\b(?:бсг?|бтг|втбг|вх|кт|рт|мз)\b\.?/gi, '')
-    .replace(/\s+/g, ' ').trim();
-}
 const state = {store:'all',category:'',query:'',deals:false,pp:false,noSugar:false,lactoseFree:false,sugarMax:'',fatMax:'',sort:'default',limit:40,products:[],filtered:[],favorites:new Set(),cart:new Map()};
 const map = new Map();
 const infoCache = new Map();
@@ -52,8 +30,8 @@ function card(product) {
   const member = product.member_price ? `<div class="member-offer"><span>С картой Coop</span><strong>${euro(product.member_price)}</strong><small>${escapeHtml(product.note?.split(' · ').slice(1).join(' · ') || '')}</small></div>` : '';
   const extra = product.member_price ? '' : product.store === 'Coop' || product.store === 'Lidl' ? product.note || '' : '';
   return `<article class="product-card ${product._hasInfo?'has-specs':''}" data-key="${escapeHtml(product.key)}">
-    <div class="product-media ${product.image?'':'no-image'}">${imageMarkup(product)}<span class="card-store"><img src="assets/store-icons/${storeIcons[product.store]}" alt="">${escapeHtml(product.store)}</span><div class="card-actions">${product._hasInfo?`<button class="info-button" type="button" data-info="${escapeHtml(product.key)}" aria-label="Состав и пищевая ценность: ${escapeHtml(product.name_it)}">${infoIcon}</button>`:''}<button class="favorite-button ${saved?'saved':''}" type="button" data-favorite="${escapeHtml(product.key)}" aria-label="${saved?'Удалить из избранного':'Добавить в избранное'}: ${escapeHtml(product.name_it)}" aria-pressed="${saved}">${heart(saved)}</button></div></div>
-    <div class="product-content"><span class="pack">${escapeHtml(product.pack || meta.categories.find(c=>c.id===product.category)?.name || '')}</span><h4 lang="it">${escapeHtml(product.name_it)}</h4><p class="russian-name">${escapeHtml(product.name_ru || '')}</p><div class="price-row"><span class="price ${product.price?'':'unpriced'}">${price}</span></div>${member}<span class="unit-price">${escapeHtml(product.unit_price || '')}</span>${extra?`<span class="offer-note">${escapeHtml(extra)}</span>`:''}<div class="cart-card-control" data-cart-control="${escapeHtml(product.key)}">${cartControl(product)}</div></div>
+    <div class="product-media ${product.image?'':'no-image'}">${imageMarkup(product)}<span class="card-store"><img src="assets/store-icons/${storeIcons[product.store]}" alt=""><span class="card-store-name">${escapeHtml(product.store)}</span></span><div class="card-actions">${product._hasInfo?`<button class="info-button" type="button" data-info="${escapeHtml(product.key)}" aria-label="Состав и пищевая ценность: ${escapeHtml(product.name_it)}">${infoIcon}</button>`:''}<button class="favorite-button ${saved?'saved':''}" type="button" data-favorite="${escapeHtml(product.key)}" aria-label="${saved?'Удалить из избранного':'Добавить в избранное'}: ${escapeHtml(product.name_it)}" aria-pressed="${saved}">${heart(saved)}</button></div></div>
+    <div class="product-content"><span class="pack">${escapeHtml(product.pack || meta.categories.find(c=>c.id===product.category)?.name || '')}</span><h4 lang="it">${escapeHtml(product.name_it)}</h4><p class="russian-name" lang="ru">${escapeHtml(product.name_ru || '')}</p><div class="price-row"><span class="price ${product.price?'':'unpriced'}">${price}</span></div>${member}<span class="unit-price">${escapeHtml(product.unit_price || '')}</span>${extra?`<span class="offer-note">${escapeHtml(extra)}</span>`:''}<div class="cart-card-control" data-cart-control="${escapeHtml(product.key)}">${cartControl(product)}</div></div>
     ${product._hasInfo?`<div class="product-specs"><strong>Характеристики</strong><div class="spec-scroll" data-spec-content><p>Загружаем…</p></div><button class="text-button" type="button" data-full-info="${escapeHtml(product.key)}">Открыть полностью</button></div>`:''}
   </article>`;
 }
@@ -375,12 +353,12 @@ document.addEventListener('keydown',event=>{
 
 (async()=>{
   try {
-    const responses=await Promise.all(['meta.json','products.json','lidl-products.json','eurospin-products.json','coop-images.json','product-attributes.json','product-info-index.json'].map(path=>fetch(path)));
+    const responses=await Promise.all(['meta.json','products.json','lidl-products.json','eurospin-products.json','coop-images.json','product-attributes.json','product-info-index.json'].map(path=>fetch(path,{cache:'no-cache'})));
     if(responses.some(response=>!response.ok))throw new Error('Catalog data unavailable');
     const [metadata,products,lidlProducts,eurospinProducts,coopImages,attributes,index]=await Promise.all(responses.map(response=>response.json()));
     meta=metadata;infoIndex=index;state.products=[...products,...lidlProducts,...eurospinProducts];
     const infoKeys=new Set(index.keys);
-    state.products.forEach(product=>{if(product.store==='Coop'&&coopImages[product.key]){product.image=coopImages[product.key];product.direct_image=true;}product._attributes=attributes[product.key];product._hasInfo=infoKeys.has(product.key);cleanCatalogName(product);product._ppRank=ppRank(product);product._search=normalize([product.name_it,product.name_ru,product.store].join(' '));map.set(product.key,product);});
+    state.products.forEach(product=>{if(product.store==='Coop'&&coopImages[product.key]){product.image=coopImages[product.key];product.direct_image=true;}product._attributes=attributes[product.key];product._hasInfo=infoKeys.has(product.key);product._ppRank=ppRank(product);product._search=normalize([product.name_it,product.name_ru,product.store].join(' '));map.set(product.key,product);});
     try{const saved=JSON.parse(localStorage.getItem('spesa-viterbo-favorites-v1')||'[]');state.favorites=new Set(Array.isArray(saved)?saved.filter(key=>map.has(key)):[]);}catch{}
     try{const saved=JSON.parse(localStorage.getItem('shopping-by-tuzin-cart-v1')||'[]');if(Array.isArray(saved))state.cart=new Map(saved.filter(entry=>Array.isArray(entry)&&map.has(entry[0])&&Number.isInteger(entry[1])&&entry[1]>0&&entry[1]<=999));}catch{}
     const params=new URLSearchParams(location.search);
